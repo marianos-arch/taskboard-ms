@@ -7,20 +7,17 @@ import datetime
 st.set_page_config(page_title="Work & Project Dashboard", page_icon="📊", layout="wide")
 
 # --- DATABASE CONNECTION (Google Sheets) ---
-# This creates a secure connection to your Google Sheet using Streamlit Secrets
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-@st.cache_data(ttl=60)  # Caches data for 1 minute to keep the app fast
+@st.cache_data(ttl=0)  # Setting to 0 for instant testing updates!
 def load_data():
     try:
-        # Pulls the data and ensures data types are correct
         df = conn.read()
         df['deadline'] = pd.to_datetime(df['deadline']).dt.date
         df['progress'] = df['progress'].astype(int)
         df['weekly_focus'] = df['weekly_focus'].astype(bool)
         return df
     except Exception as e:
-        # Fallback to empty structure if sheet is empty or not yet connected
         return pd.DataFrame(columns=[
             "id", "title", "department", "partner", "progress", 
             "status", "description", "notes", "deadline", "weekly_focus", "link"
@@ -32,18 +29,15 @@ df_projects = load_data()
 st.sidebar.title("🔐 Admin Panel")
 admin_password = st.sidebar.text_input("Enter Admin Password to Edit", type="password")
 
-# Verify password against Streamlit Secrets (set this up in your Streamlit Cloud Dashboard)
-# For local testing, you can use a fallback string like "admin123"
 IS_ADMIN = False
 if admin_password:
     try:
         if admin_password == st.secrets["ADMIN_PASSWORD"]:
             IS_ADMIN = True
-            st.sidebar.success("Authenticated! Edit mode unlocked.")
+            st.sidebar.success("Authenticated!")
         else:
             st.sidebar.error("Incorrect password.")
     except KeyError:
-        # Fallback for local testing if secrets file doesn't exist yet
         if admin_password == "testpass":
             IS_ADMIN = True
             st.sidebar.success("Local Test Auth Successful!")
@@ -68,7 +62,6 @@ else:
     total_active, total_blocked, total_completed = 0, 0, 0
 
 col1.metric(label="Active Projects", value=total_active)
-# Displays a green indicator if blockers are 0, otherwise standard format
 col2.metric(
     label="Current Blockers", 
     value=total_blocked, 
@@ -79,13 +72,16 @@ col3.metric(label="Shipped Portfolios", value=total_completed)
 
 st.markdown("---")
 
-# --- TAB STRUCTURE ---
-tab1, tab2, tab3 = st.tabs(["🎯 At a Glance", "🚀 Active Projects", "✅ Completed Archive"])
+# --- TAB DEFINITIONS ---
+# If you are an Admin, we add a 4th tab dynamically!
+if IS_ADMIN:
+    tab1, tab2, tab3, tab4 = st.tabs(["🎯 At a Glance", "🚀 Active Projects", "✅ Completed Archive", "➕ Add New Project"])
+else:
+    tab1, tab2, tab3 = st.tabs(["🎯 At a Glance", "🚀 Active Projects", "✅ Completed Archive"])
 
 # --- TAB 1: AT A GLANCE ---
 with tab1:
     st.header("🎯 Current Priorities & Needs")
-    
     col_focus, col_block = st.columns(2)
     
     with col_focus:
@@ -136,59 +132,13 @@ with tab2:
                 with c2:
                     st.markdown(f"📆 **Deadline:** {row['deadline'].strftime('%B %d, %Y')}")
                     
-                    # IF ADMIN LOGGED IN: Render Controls to Change Sheet Live
-                    # --- ADMIN VIEW: ADD NEW PROJECT FORM ---
                     if IS_ADMIN:
-                        st.markdown("---")
-                        st.header("➕ Add New Project Entry")
-                        with st.form("creation_form_unique", clear_on_submit=True):
-                            new_title = st.text_input("Project / Assignment Title")
-                            
-                            # 🏢 MATCHING YOUR GOOGLE SHEET DEPARTMENTS EXACTLY
-                            dept_options = ["Marketing", "Engineering", "Operations", "Product", "Sales", "Accounting", "External"]
-                            new_dept = st.selectbox("Department / Segment Tag", options=dept_options)
-                            
-                            new_partner = st.text_input("Partners (Separated by commas)")
-                            new_desc = st.text_area("Detailed Project Description")
-                            new_deadline = st.date_input("Target Completion Deadline", datetime.date.today())
-                            
-                            # 🚦 MATCHING YOUR GOOGLE SHEET STATUS EXACTLY
-                            status_options = ["🟢 On Track", "🟡 Delayed", "🔴 Blocked", "🟢 Completed"]
-                            new_status = st.selectbox("Initial Status", options=status_options)
-                            
-                            # 🎯 MATCHING YOUR GOOGLE SHEET WEEKLY FOCUS (BOOLEAN)
-                            # Using a selectbox with Python True/False mapping
-                            new_focus_choice = st.selectbox("Set as Weekly Focus?", options=["No", "Yes"])
-                            new_focus = True if new_focus_choice == "Yes" else False
-                            
-                            submit_new = st.form_submit_button("Append to Google Sheet Database")
-                            
-                            if submit_new and new_title:
-                                # Generate next numeric id
-                                next_id = int(df_projects['id'].max() + 1) if not df_projects.empty else 1
-                                
-                                new_row = {
-                                    "id": next_id,
-                                    "title": new_title,
-                                    "department": new_dept,     # Saved from dropdown
-                                    "partner": new_partner,
-                                    "progress": 0,
-                                    "status": new_status,       # Saved from dropdown
-                                    "description": new_desc,
-                                    "notes": "",
-                                    "deadline": new_deadline,
-                                    "weekly_focus": new_focus,   # Saved from dropdown conversion
-                                    "link": ""
-                                }
-                                
-                                # Append new entry, update sheets database, and refresh
-                                updated_df = pd.concat([df_projects, pd.DataFrame([new_row])], ignore_index=True)
-                                conn.update(data=updated_df)
-                                st.cache_data.clear()
-                                st.success(f"Successfully appended '{new_title}' to the cloud database!")
-                                st.rerun()
-
-                        # Save Changes Button for this specific project
+                        new_progress = st.slider("Update Progress", 0, 100, int(row['progress']), key=f"p_{idx}")
+                        new_status = st.selectbox("Update Status", ["🟢 On Track", "🟡 Delayed", "🔴 Blocked"], index=["🟢 On Track", "🟡 Delayed", "🔴 Blocked"].index(row['status']), key=f"s_{idx}")
+                        new_focus = st.checkbox("Set Weekly Focus", value=bool(row['weekly_focus']), key=f"f_{idx}")
+                        new_notes = st.text_area("Edit Update Notes", value=row['notes'], key=f"n_{idx}")
+                        new_link = st.text_input("Attach Final Deliverable URL", value=row['link'], key=f"l_{idx}")
+                        
                         if st.button("Save Changes", key=f"btn_{idx}"):
                             df_projects.at[idx, 'progress'] = new_progress
                             df_projects.at[idx, 'status'] = "🟢 Completed" if new_progress == 100 else new_status
@@ -196,12 +146,10 @@ with tab2:
                             df_projects.at[idx, 'notes'] = new_notes
                             df_projects.at[idx, 'link'] = new_link
                             
-                            # Push entire updated DataFrame back to Google Sheets
                             conn.update(data=df_projects)
-                            st.cache_data.clear() # Wipe cache to show changes instantly
+                            st.cache_data.clear()
                             st.rerun()
                     else:
-                        # GUEST VIEW (Read-Only Status Display)
                         st.write("Progress Meter:")
                         st.progress(int(row['progress']) / 100)
                         st.write(f"Current Status: **{row['status']}**")
@@ -211,7 +159,6 @@ with tab2:
 # --- TAB 3: COMPLETED ARCHIVE ---
 with tab3:
     st.header("📦 Corporate Portfolio Archive")
-    st.write("This archive houses finalized deliverables, transforming routine work history into an accessible asset portfolio.")
     
     if completed_df.empty:
         st.info("Archive is empty. Completed projects will automatically shift here.")
@@ -229,40 +176,47 @@ with tab3:
                     else:
                         st.caption("No public link attached.")
 
-# --- ADMIN VIEW: ADD NEW PROJECT FORM ---
+# --- TAB 4: ADMIN CREATION TAB (Only loads if password matches) ---
 if IS_ADMIN:
-    st.markdown("---")
-    st.header("➕ Add New Project Entry")
-    with st.form("new_project_form", clear_on_submit=True):
-        new_title = st.text_input("Project / Assignment Title")
-        new_dept = st.text_input("Department / Segment Tag")
-        new_partner = st.text_input("Partners (Separated by commas)")
-        new_desc = st.text_area("Detailed Project Description")
-        new_deadline = st.date_input("Target Completion Deadline", datetime.date.today())
-        
-        submit_new = st.form_submit_button("Append to Google Sheet Database")
-        
-        if submit_new and new_title:
-            # Generate next numeric id
-            next_id = int(df_projects['id'].max() + 1) if not df_projects.empty else 1
+    with tab4:
+        st.header("➕ Add New Project Entry")
+        with st.form("creation_form_unique", clear_on_submit=True):
+            new_title = st.text_input("Project / Assignment Title")
             
-            new_row = {
-                "id": next_id,
-                "title": new_title,
-                "department": new_dept,
-                "partner": new_partner,
-                "progress": 0,
-                "status": "🟢 On Track",
-                "description": new_desc,
-                "notes": "",
-                "deadline": new_deadline,
-                "weekly_focus": False,
-                "link": ""
-            }
+            dept_options = ["Marketing", "Engineering", "Operations", "Product", "Sales", "Accounting", "External"]
+            new_dept = st.selectbox("Department / Segment Tag", options=dept_options)
             
-            # Append new entry, update sheets database, and refresh
-            updated_df = pd.concat([df_projects, pd.DataFrame([new_row])], ignore_index=True)
-            conn.update(data=updated_df)
-            st.cache_data.clear()
-            st.success(f"Successfully appended '{new_title}' to the cloud database!")
-            st.rerun()
+            new_partner = st.text_input("Partners (Separated by commas)")
+            new_desc = st.text_area("Detailed Project Description")
+            new_deadline = st.date_input("Target Completion Deadline", datetime.date.today())
+            
+            status_options = ["🟢 On Track", "🟡 Delayed", "🔴 Blocked", "🟢 Completed"]
+            new_status = st.selectbox("Initial Status", options=status_options)
+            
+            new_focus_choice = st.selectbox("Set as Weekly Focus?", options=["No", "Yes"])
+            new_focus = True if new_focus_choice == "Yes" else False
+            
+            submit_new = st.form_submit_button("Append to Google Sheet Database")
+            
+            if submit_new and new_title:
+                next_id = int(df_projects['id'].max() + 1) if not df_projects.empty else 1
+                
+                new_row = {
+                    "id": next_id,
+                    "title": new_title,
+                    "department": new_dept,
+                    "partner": new_partner,
+                    "progress": 0,
+                    "status": new_status,
+                    "description": new_desc,
+                    "notes": "",
+                    "deadline": new_deadline,
+                    "weekly_focus": new_focus,
+                    "link": ""
+                }
+                
+                updated_df = pd.concat([df_projects, pd.DataFrame([new_row])], ignore_index=True)
+                conn.update(data=updated_df)
+                st.cache_data.clear()
+                st.success(f"Successfully appended '{new_title}' to the cloud database!")
+                st.rerun()
