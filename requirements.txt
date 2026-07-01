@@ -4,3 +4,4 @@ pandas
 openpyxl
 Pillow
 streamlit-gsheets
+streamlit-google-sheets
