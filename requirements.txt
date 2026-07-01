@@ -3,4 +3,4 @@ requests
 pandas
 openpyxl
 Pillow
-streamlit-image-coordinates
+streamlit-gsheets
