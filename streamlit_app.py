@@ -141,7 +141,7 @@ with tab2:
                     if IS_ADMIN:
                         st.markdown("---")
                         st.header("➕ Add New Project Entry")
-                        with st.form("new_project_form", clear_on_submit=True):
+                        with st.form("creation_form_unique", clear_on_submit=True):
                             new_title = st.text_input("Project / Assignment Title")
                             
                             # 🏢 MATCHING YOUR GOOGLE SHEET DEPARTMENTS EXACTLY
