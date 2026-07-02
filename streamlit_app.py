@@ -8,12 +8,12 @@ import gspread
 # --- APP CONFIGURATION ---
 st.set_page_config(page_title="Work & Project Dashboard", page_icon="📊", layout="wide")
 
-# --- DATABASE CONNECTION (Google Sheets via Raw Service Account) ---
+# --- DATABASE CONNECTION (Google Sheets via Normalized Service Account) ---
 @st.cache_data(ttl=0)  # Setting to 0 for instant testing updates!
 def load_data():
     try:
-        # 1. Stitch the private key together flawlessly in Python
-        private_key = (
+        # 1. Provide the raw block exactly as it appears
+        raw_key = (
             "-----BEGIN PRIVATE KEY-----\n"
             "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDlZXU5AT1OHRKz\n"
             "qRzNPBNoSzMnpkQ6VZgi6JcKd37edbLvqAIRMsCqFxs+dSeOjWDbecCSG7k6pHVT\n"
@@ -41,7 +41,12 @@ def load_data():
             "-----END PRIVATE KEY-----\n"
         )
 
-        # 2. Reconstruct the full Google Account JSON mapping dynamically inside Python
+        # 2. CRITICAL FIX: Clean the string entirely of double-escaped blocks and empty lines
+        private_key = raw_key.replace("\\n", "\n")
+        while "\n\n" in private_key:
+            private_key = private_key.replace("\n\n", "\n")
+
+        # 3. Reconstruct the service account mapping
         info = {
             "type": "service_account",
             "project_id": st.secrets["connections"]["gsheets"]["project_id"],
@@ -56,16 +61,15 @@ def load_data():
             "universe_domain": "googleapis.com"
         }
 
-        # 3. Setup scopes and authenticate natively
+        # 4. Authenticate natively using gspread
         scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(info, scopes=scopes)
         client = gspread.authorize(creds)
 
-        # 4. Pull the worksheet directly using your spreadsheet URL
+        # 5. Connect and pull your sheet rows
         spreadsheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         sheet = client.open_by_url(spreadsheet_url).sheet1
         
-        # 5. Extract rows and return data as a Pandas DataFrame
         data = sheet.get_all_records()
         return pd.DataFrame(data)
 
@@ -73,8 +77,8 @@ def load_data():
         st.error(f"Failed to connect to Google Sheets: {e}")
         return pd.DataFrame()
 
-# Fetch data using the robust native connector
-df = load_data()
+# 6. FIX: Name the output variable exactly 'df_projects' so line 97 can read it!
+df_projects = load_data()
 
 # --- SECURITY & ADMIN LOGIN ---
 st.sidebar.title("🔐 Admin Panel")
