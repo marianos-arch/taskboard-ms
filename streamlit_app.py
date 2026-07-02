@@ -43,9 +43,7 @@ if "connections" in st.secrets and "gsheets" in st.secrets["connections"]:
 # Establish the standard connection. Streamlit safely extracts all native values on its own.
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-except Exception as e:
-    st.error(f"Configuration dictionary fallback triggered: {e}")
-    conn = st.connection("gsheets", type=GSheetsConnection)
+
 @st.cache_data(ttl=0)  # Setting to 0 for instant testing updates!
 def load_data():
     try:
