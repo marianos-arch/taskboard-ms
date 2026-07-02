@@ -1,5 +1,4 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import datetime
 from google.oauth2.service_account import Credentials
@@ -8,7 +7,7 @@ import gspread
 # --- APP CONFIGURATION ---
 st.set_page_config(page_title="Work & Project Dashboard", page_icon="📊", layout="wide")
 
-# --- DATABASE CONNECTION (Google Sheets via Dynamic Secrets) ---
+# --- DATABASE CONNECTION (Google Sheets via Dynamic Secrets & gspread) ---
 @st.cache_data(ttl=0)  # Setting to 0 for instant testing updates!
 def load_data():
     try:
@@ -47,19 +46,42 @@ def load_data():
         sheet = client.open_by_url(spreadsheet_url).sheet1
         
         data = sheet.get_all_records()
-        return pd.DataFrame(data)
+        return pd.DataFrame(data), sheet
 
     except Exception as e:
-        # This will now display the exact error message if something fails
         st.error(f"Failed to connect to Google Sheets: {e}")
-        return pd.DataFrame()
+        return pd.DataFrame(), None
 
 # --- FETCH & PREPARE DATA ---
-df_projects = load_data()
+# We return both the dataframe and the live sheet interface wrapper
+df_projects, sheet_api_client = load_data()
 
-# CRITICAL FIX: Convert the text column into valid Python datetime objects
-if not df_projects.empty and 'deadline' in df_projects.columns:
-    df_projects['deadline'] = pd.to_datetime(df_projects['deadline'], errors='coerce')
+# Clean and normalize columns
+if not df_projects.empty:
+    if 'deadline' in df_projects.columns:
+        df_projects['deadline'] = pd.to_datetime(df_projects['deadline'], errors='coerce')
+    
+    # ADJUSTMENT: Standardize weekly focus as upper-case text strings to perfectly align with your typed inputs
+    if 'weekly_focus' in df_projects.columns:
+        df_projects['weekly_focus'] = df_projects['weekly_focus'].astype(str).str.strip().str.upper()
+
+# --- HELPER FUNCTION: NATIVE WRITE BACK VIA GSPREAD ---
+def save_dataframe_to_gsheet(df_to_save):
+    if sheet_api_client is not None:
+        try:
+            # Format dataframe back to serializable string rows for Google Sheets storage
+            df_copy = df_to_save.copy()
+            if 'deadline' in df_copy.columns:
+                df_copy['deadline'] = df_copy['deadline'].dt.strftime('%Y-%m-%d')
+            
+            # Clear worksheet and write new schema rows back safely
+            sheet_api_client.clear()
+            sheet_api_client.update([df_copy.columns.values.tolist()] + df_copy.values.tolist())
+            return True
+        except Exception as e:
+            st.error(f"Error saving down data rows: {e}")
+            return False
+    return False
 
 # --- SECURITY & ADMIN LOGIN ---
 st.sidebar.title("🔐 Admin Panel")
@@ -86,7 +108,7 @@ completed_df = df_projects[df_projects["progress"] == 100] if not df_projects.em
 st.title("🎈 My Work & Project Dashboard")
 st.write("Welcome! This dashboard tracks my active corporate projects, cross-departmental collaborations, and historical deliverables.")
 
-# --- METRICS SECTION (Executive Summary) ---
+# --- METRICS SECTION ---
 st.markdown("### 📊 Executive Summary")
 col1, col2, col3 = st.columns(3)
 
@@ -109,7 +131,6 @@ col3.metric(label="Shipped Portfolios", value=total_completed)
 st.markdown("---")
 
 # --- TAB DEFINITIONS ---
-# If you are an Admin, we add a 4th tab dynamically!
 if IS_ADMIN:
     tab1, tab2, tab3, tab4 = st.tabs(["🎯 At a Glance", "🚀 Active Projects", "✅ Completed Archive", "➕ Add New Project"])
 else:
@@ -123,12 +144,14 @@ with tab1:
     with col_focus:
         st.subheader("⭐ This Week's Focus")
         if not active_df.empty:
-            focus_df = active_df[active_df["weekly_focus"] == True]
+            # ADJUSTMENT: Filter by matching the uppercase text string "TRUE"
+            focus_df = active_df[active_df["weekly_focus"] == "TRUE"]
             if not focus_df.empty:
                 for _, row in focus_df.iterrows():
                     with st.container(border=True):
                         st.markdown(f"**{row['title']}** ({row['department']})")
-                        st.caption(f"Progress: {row['progress']}% | Target: {row['deadline'].strftime('%b %d, %Y')}")
+                        target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
+                        st.caption(f"Progress: {row['progress']}% | Target: {target_date}")
             else:
                 st.info("Routine maintenance and backlog tasks.")
         else:
@@ -166,30 +189,40 @@ with tab2:
                         st.markdown(f"**Latest Updates / Notes:** {row['notes']}")
                 
                 with c2:
-                    st.markdown(f"📆 **Deadline:** {row['deadline'].strftime('%B %d, %Y')}")
+                    target_date = row['deadline'].strftime('%B %d, %Y') if pd.notna(row['deadline']) else "N/A"
+                    st.markdown(f"📆 **Deadline:** {target_date}")
                     
                     if IS_ADMIN:
                         new_progress = st.slider("Update Progress", 0, 100, int(row['progress']), key=f"p_{idx}")
-                        new_status = st.selectbox("Update Status", ["🟢 On Track", "🟡 Delayed", "🔴 Blocked"], index=["🟢 On Track", "🟡 Delayed", "🔴 Blocked"].index(row['status']), key=f"s_{idx}")
-                        new_focus = st.checkbox("Set Weekly Focus", value=bool(row['weekly_focus']), key=f"f_{idx}")
+                        
+                        status_list = ["🟢 On Track", "🟡 Delayed", "🔴 Blocked"]
+                        curr_status = row['status'] if row['status'] in status_list else "🟢 On Track"
+                        new_status = st.selectbox("Update Status", status_list, index=status_list.index(curr_status), key=f"s_{idx}")
+                        
+                        # ADJUSTMENT: Convert the row text to select box option toggle
+                        is_focused_now = "TRUE" if row['weekly_focus'] == "TRUE" else "FALSE"
+                        new_focus_selection = st.selectbox("Set Weekly Focus", options=["FALSE", "TRUE"], index=["FALSE", "TRUE"].index(is_focused_now), key=f"f_{idx}")
+                        
                         new_notes = st.text_area("Edit Update Notes", value=row['notes'], key=f"n_{idx}")
                         new_link = st.text_input("Attach Final Deliverable URL", value=row['link'], key=f"l_{idx}")
                         
                         if st.button("Save Changes", key=f"btn_{idx}"):
                             df_projects.at[idx, 'progress'] = new_progress
                             df_projects.at[idx, 'status'] = "🟢 Completed" if new_progress == 100 else new_status
-                            df_projects.at[idx, 'weekly_focus'] = new_focus
+                            df_projects.at[idx, 'weekly_focus'] = new_focus_selection
                             df_projects.at[idx, 'notes'] = new_notes
                             df_projects.at[idx, 'link'] = new_link
                             
-                            conn.update(data=df_projects)
-                            st.cache_data.clear()
-                            st.rerun()
+                            # ADJUSTMENT: Write data back using our dynamic helper function wrapper
+                            if save_dataframe_to_gsheet(df_projects):
+                                st.cache_data.clear()
+                                st.success("Database rows synchronized successfully!")
+                                st.rerun()
                     else:
                         st.write("Progress Meter:")
                         st.progress(int(row['progress']) / 100)
                         st.write(f"Current Status: **{row['status']}**")
-                        if row['weekly_focus']:
+                        if row['weekly_focus'] == "TRUE":
                             st.warning("🎯 Marked as a high priority for this week.")
 
 # --- TAB 3: COMPLETED ARCHIVE ---
@@ -204,7 +237,8 @@ with tab3:
                 col_arch1, col_arch2 = st.columns([3, 1])
                 with col_arch1:
                     st.markdown(f"### ✅ {row['title']}")
-                    st.markdown(f"**Department:** {row['department']} | **Target Deadline:** {row['deadline'].strftime('%b %d, %Y')}")
+                    target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
+                    st.markdown(f"**Department:** {row['department']} | **Target Deadline:** {target_date}")
                     st.markdown(f"*{row['description']}*")
                 with col_arch2:
                     if pd.notna(row['link']) and str(row['link']).strip() != "":
@@ -212,7 +246,7 @@ with tab3:
                     else:
                         st.caption("No public link attached.")
 
-# --- TAB 4: ADMIN CREATION TAB (Only loads if password matches) ---
+# --- TAB 4: ADMIN CREATION TAB ---
 if IS_ADMIN:
     with tab4:
         st.header("➕ Add New Project Entry")
@@ -229,8 +263,8 @@ if IS_ADMIN:
             status_options = ["🟢 On Track", "🟡 Delayed", "🔴 Blocked", "🟢 Completed"]
             new_status = st.selectbox("Initial Status", options=status_options)
             
-            new_focus_choice = st.selectbox("Set as Weekly Focus?", options=["No", "Yes"])
-            new_focus = True if new_focus_choice == "Yes" else False
+            # ADJUSTMENT: Create new focus fields using the plain text options structure
+            new_focus_choice = st.selectbox("Set as Weekly Focus?", options=["FALSE", "TRUE"])
             
             submit_new = st.form_submit_button("Append to Google Sheet Database")
             
@@ -246,13 +280,15 @@ if IS_ADMIN:
                     "status": new_status,
                     "description": new_desc,
                     "notes": "",
-                    "deadline": new_deadline,
-                    "weekly_focus": new_focus,
+                    "deadline": pd.to_datetime(new_deadline),
+                    "weekly_focus": new_focus_choice,
                     "link": ""
                 }
                 
                 updated_df = pd.concat([df_projects, pd.DataFrame([new_row])], ignore_index=True)
-                conn.update(data=updated_df)
-                st.cache_data.clear()
-                st.success(f"Successfully appended '{new_title}' to the cloud database!")
-                st.rerun()
+                
+                # ADJUSTMENT: Save row data using our dynamic helper function wrapper
+                if save_dataframe_to_gsheet(updated_df):
+                    st.cache_data.clear()
+                    st.success(f"Successfully appended '{new_title}' to the cloud database!")
+                    st.rerun()
