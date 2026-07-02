@@ -8,12 +8,11 @@ st.set_page_config(page_title="Work & Project Dashboard", page_icon="📊", layo
 
 # We retrieve the secrets dictionary and cleanly format the private key string in Python
 # --- DATABASE CONNECTION (Google Sheets) ---
-try:
-    # 1. Grab a copy of the gsheets credentials dictionary from secrets
-    credentials_dict = dict(st.secrets["connections"]["gsheets"])
-    
-    # 2. Safely overwrite the private key with our hardcoded single-line layout
-    credentials_dict["private_key"] = (
+# --- DATABASE CONNECTION (Google Sheets) ---
+# We inject the formatted key directly into Streamlit's internal secrets dictionary.
+# This prevents passing forbidden keyword arguments like 'spreadsheet' to the connection method.
+if "connections" in st.secrets and "gsheets" in st.secrets["connections"]:
+    st.secrets["connections"]["gsheets"]["private_key"] = (
         "-----BEGIN PRIVATE KEY-----\n"
         "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDlZXU5AT1OHRKz\n"
         "qRzNPBNoSzMnpkQ6VZgi6JcKd37edbLvqAIRMsCqFxs+dSeOjWDbecCSG7k6pHVT\n"
@@ -40,13 +39,9 @@ try:
         "ZcB7+NOAe+WTkHhfXcG4vKAk\n"
         "-----END PRIVATE KEY-----\n"
     )
-    
-    # 3. CRITICAL FIX: Remove the 'type' string from the dict so it doesn't conflict
-    if "type" in credentials_dict:
-        credentials_dict.pop("type")
-        
-    # 4. Now unpack the dictionary safely without colliding types
-    conn = st.connection("gsheets", type=GSheetsConnection, **credentials_dict)
+
+# Establish the standard connection. Streamlit safely extracts all native values on its own.
+conn = st.connection("gsheets", type=GSheetsConnection)
 
 except Exception as e:
     st.error(f"Configuration dictionary fallback triggered: {e}")
