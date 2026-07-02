@@ -8,50 +8,25 @@ import gspread
 # --- APP CONFIGURATION ---
 st.set_page_config(page_title="Work & Project Dashboard", page_icon="📊", layout="wide")
 
-# --- DATABASE CONNECTION (Google Sheets via Cleaned Service Account) ---
+# --- DATABASE CONNECTION (Google Sheets via Dynamic Secrets) ---
 @st.cache_data(ttl=0)  # Setting to 0 for instant testing updates!
 def load_data():
     try:
-        # 1. Store the new, valid base64 key chunks inside a clean list
-        key_lines = [
-            "-----BEGIN PRIVATE KEY-----",
-            "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC31sQcMBTxtVCn",
-            "6I28YvaxaGTSvtpqUR2v2TN5RFlJzVgxs51KI6i3e2IXrmMDmvnnZYIQM/I629TN",
-            "II5ew+yhEXdz59N5N2UwZXtNkNVt7x+ZpMILpDBUWMVnKFAeskq2/US4VQS2FU1g",
-            "iiecr105T4ARzvzdW6Us/3kdoGxrZlzY+ijjBmn2BpPyzU8zP8jd8oPNkD/IqmWu",
-            "dpXe7smbNumKPk95UV4OWURgEv4IlIHgkn7SHbufzT31ApLI4jHgxZ8AqGuK3h0U",
-            "Ssn99O8AUOgdOKGjDtEk+xQKtoI7KrlpGi7ZKc04j//6fA3eJTnyV+z977NkszcA",
-            "gSARHtuPAgMBAAECggEACpMI6Wd+nOnv/2h/Vpmz/5ULT5qjbOrI3rI1+sC1XhW4",
-            "qqCJPe16fpX97hzIHI9P1paJJQNykx4inxXt+oIh3KCTkrrVTYCj37pxSDnk0j5R",
-            "6VWHxSxRjK3P1P+Fnu5kdngaTtFdGa10q5vmwWV44vCxY3+Dc1Fv2ScXbAkr6KrR",
-            "MLLAY0VnJIwXD6Gfh45fmy2pYArWMQUsXDVzwmy2Prw7RQZPsvQTFuTBZyKLPlaX",
-            "B3QAVyForUfgDxEQ0lJ0H8TQ4tWwoiwqRHTseKJlEaxh2mTwMQwiLCnePJ51qnUx",
-            "6FyH61B1svEZP3Mtni6IXar3r4C94/J27P6VeKDT8QKBgQDzu8jDoj8IB6XGWiPh",
-            "If8wp07WE9ADKY0LheBndaFCKTG/W0M8oWlcH0w2ASJ4qLx0tRLVgoFuUan5O8hT",
-            "2A2geQIxm2RZVe4q+vPn/uifhNZxhpIJLundTgRs1skVrPrMft5tEtAq0CeOvcyL",
-            "Qpay8kW2sBGmiZylBLb6rL+QWQKBgQDBF0+zTaaZU69Pxu4qx03qqiMQVEFulzwi",
-            "lPB1i24JDmK+wRt8VfDg10Us5Iu3UbrY/TRLcx9E58gh0kz5X8E6fMZB+qzZDuA0",
-            "sxkzymGahNHCqdadHiuR9eH1YUol1/KOB2HtHLqteP3sUlHykVCORpW7FSIR4TLa",
-            "L8B4nQMOJwKBgHpNwqKYqbRn0gHEfbidDKbnbaHy8zCDCym7Fi4UUsUWUsZJD2Y/",
-            "QNVfRyjaTOfrFBYkPr0w7a3kALz2CMI56iyaTEWESkih3A9pOjcyLJzPVaRF+MXu",
-            "6p+IZKQQ63qbAIbZKtfk1tyE8zSnfRpsYZ6N//l6RIEjEJ2lzgPf54iRAoGAKLb8",
-            "pEc8WNpPfhfpQnXyFQg5ColpnqMfF/+l0HNNCXXSFnzricUpXI+n03aBi28dYgHK",
-            "FBq7PjFNfuw0NOUe/nEu8Nyls8MyPYqCRuxmtklJXa2oRksFTuq08aPJGb+2MoKW",
-            "AIRtTITVrg4Rn39KqCV0DxW+sFx295DYGdapvUMCgYEA6pfK5yhlwkK8mKxt7iuA",
-            "GGiHgGCJ20QzYFZj3jVk4oUXtRUJmOrBnkP0okIkb9xfOUAQg3ph0/WRpPVzLlUJ",
-            "YxuooNMiTwD4iAtAhQi9jeBpjlyIlNmSvc4Mcdxaqvj4ylng9l/EZ7P1AbU+fFKP",
-            "LiGIaHOtXGLm5sv96OZG7do=",
-            "-----END PRIVATE KEY-----"
-        ]
+        # 1. Pull the raw private key string directly from Streamlit Secrets
+        raw_key = st.secrets["connections"]["gsheets"]["private_key"]
+        
+        # 2. Automatically repair any double-escaped literal "\n" text into actual line breaks
+        private_key = raw_key.replace("\\n", "\n")
+        
+        # 3. Ensure the key block has perfectly clean single newlines
+        while "\n\n" in private_key:
+            private_key = private_key.replace("\n\n", "\n")
 
-        # 2. Join strings natively using programmatic line breaks
-        private_key = "\n".join(key_lines) + "\n"
-
-        # 3. Construct the Google Cloud service info dictionary mapping
+        # 4. Reconstruct the full Google Account JSON structure using your exact secrets
         info = {
             "type": "service_account",
             "project_id": st.secrets["connections"]["gsheets"]["project_id"],
-            "private_key_id": "3d065b642ad6e2c2324ef17a2e50d542e892fdb3",
+            "private_key_id": st.secrets["connections"]["gsheets"]["private_key_id"],
             "private_key": private_key,
             "client_email": st.secrets["connections"]["gsheets"]["client_email"],
             "client_id": st.secrets["connections"]["gsheets"]["client_id"],
@@ -62,12 +37,12 @@ def load_data():
             "universe_domain": "googleapis.com"
         }
 
-        # 4. Authenticate via Google OAuth
+        # 5. Authenticate via Google OAuth
         scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(info, scopes=scopes)
         client = gspread.authorize(creds)
 
-        # 5. Access the Google Sheet document via URL
+        # 6. Access the Google Sheet document via its URL
         spreadsheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         sheet = client.open_by_url(spreadsheet_url).sheet1
         
@@ -75,12 +50,12 @@ def load_data():
         return pd.DataFrame(data)
 
     except Exception as e:
+        # This will now display the exact error message if something fails
         st.error(f"Failed to connect to Google Sheets: {e}")
         return pd.DataFrame()
 
-# 6. Store the results directly into the expected global variable
+# 7. Store the results directly into the global variable your dashboard expects
 df_projects = load_data()
-
 
 # --- SECURITY & ADMIN LOGIN ---
 st.sidebar.title("🔐 Admin Panel")
