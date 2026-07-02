@@ -12,46 +12,46 @@ st.set_page_config(page_title="Work & Project Dashboard", page_icon="📊", layo
 @st.cache_data(ttl=0)  # Setting to 0 for instant testing updates!
 def load_data():
     try:
-        # 1. Store the exact base64 key chunks inside a clean list with no embedded escaping
+        # 1. Store the new, valid base64 key chunks inside a clean list
         key_lines = [
             "-----BEGIN PRIVATE KEY-----",
-            "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDlZXU5AT1OHRKz",
-            "qRzNPBNoSzMnpkQ6VZgi6JcKd37edbLvqAIRMsCqFxs+dSeOjWDbecCSG7k6pHVT",
-            "b7QSy7T6CY9smaoFj3ketUvZsiEv+DIWnr+0Uk/i6ERK5mRaXoCe92iedXfWggan",
-            "3X7LELqlQ5whxlW7WpwWBY0FQodzK0tYy/ITx4z6G7bQWhC4n1etk0D5HEtN/bzd",
-            "mzOHBtUoLDQJD80+OS5bt0QVjv8dWmG8Cyf71IzROU0FJkUrGr4MweTpiYcArckK",
-            "AtchYyv3B82e9F7gtql1FHOrNMjHdT6mYwr4yTpyY36S/UYHaS/mEiPYkjQ+7rbu",
-            "3TnlWQYhAgMBAAECggEAARSpCHd3xzguWB/WFaZwjfd6undXT3ILSTDQ01kMRTaH",
-            "PQdM2TFkxHhe5byuDsceO3J3pIiSZxMSxW2bitIgXGQyo4eWzDdokes3PAORkfUI",
-            "oWAmlY4kt7Qx7CtpMh7LWtReDw8NHTrYFq7ds820n2Yx5FvXmA4deaIVj76IPlPl",
-            "2q+8Qjs30HOpSRLGjgmnQ84BHLd4Jx62BA1IxDMv9pctp42BdI93F9yw9S+ayt4F",
-            "wszZhdhYpAG/ZwAFkSfBEWf3VoOZzDo89VeRO9rXPDHWk7XamCDNfMHvGr2iuHyI",
-            "xTCmmOYDxoDKTqGBh7PcEQ6d79KuB+RgoqS0PyhEAQKBgQDzLUwon4MuInXodWLq",
-            "U0CFiF4Lf/MQ5/UXPSdH5P0pI055K/qsPExfA/nFAHicgSQ3es7ZgFpuf9q/nMu3",
-            "/utzWzZ3Tn5fB86IqmT7fU796kZ79c1guG4Q2WTlNKCYLHWwAsjFTNjDvGV5BQ3/",
-            "Ev6BE02qZFR0xafS9Co7YgIWoQKBgQDxfiHuYQI1PnuHrt3BL+zE6ehfyLEcD4Aj",
-            "npZfujE+ZjBuBde2HxG0zZgO1flZ0dc8+gjtquB0O5KLTQ+8e9MerkjdGPMdSZrRl",
-            "aVZ8+aBwWjhItQZnRFpTvR/QPFbdYchpw2IQ+tKta4WJqXOZsmIrDrqHmXTM40be",
-            "KG+Cdno/gQKBgAqs2WQLJJoY3y42QQJiZzm1c9NzaXs7g5HimF/amJZ+u0oseROo",
-            "jf250fQpAiJ0tN9On9gCf3XMXRD+VB8erL1iqrBwHLIVSKbNPCOiK56P80orzzlI",
-            "v2Qz9u7s8YPcp8nzRVcL+ZQWKCo445VoAw4th8JMJzz9FFH5cAUtV0QhAoGBALEs",
-            "ixRrU8VgjBzl7IgZ8yodOoFbqqUdsjN1AFzh0Fyk8GEw9g4PzNZS2BHGGQPkkyIX",
-            "RiRr49XTZKp/QuaBTCTSZ38+hDYuZ9enSu7x7gXAC188gPAus96P+NE8E7bkULdX",
-            "w5EVlI/rPNPc4JU4zNEuQyfNLGZNsOa43+blqZcBAoGBALM5gszM20oDDd3nS4b6",
-            "Fwa+WO36lj/QAlXlb4YXwoTrFaB6gmbSWV4fS61ANoep7fUPw1DXKFMBe+Dqm3i6",
-            "pThrZPcxUsWxlCHiSEqvy8+i7GWs59Ddss3Ac/yxypDrn3jU4GRARJ8ZC5uoAXck",
-            "ZcB7+NOAe+WTkHhfXcG4vKAk",
+            "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC31sQcMBTxtVCn",
+            "6I28YvaxaGTSvtpqUR2v2TN5RFlJzVgxs51KI6i3e2IXrmMDmvnnZYIQM/I629TN",
+            "II5ew+yhEXdz59N5N2UwZXtNkNVt7x+ZpMILpDBUWMVnKFAeskq2/US4VQS2FU1g",
+            "iiecr105T4ARzvzdW6Us/3kdoGxrZlzY+ijjBmn2BpPyzU8zP8jd8oPNkD/IqmWu",
+            "dpXe7smbNumKPk95UV4OWURgEv4IlIHgkn7SHbufzT31ApLI4jHgxZ8AqGuK3h0U",
+            "Ssn99O8AUOgdOKGjDtEk+xQKtoI7KrlpGi7ZKc04j//6fA3eJTnyV+z977NkszcA",
+            "gSARHtuPAgMBAAECggEACpMI6Wd+nOnv/2h/Vpmz/5ULT5qjbOrI3rI1+sC1XhW4",
+            "qqCJPe16fpX97hzIHI9P1paJJQNykx4inxXt+oIh3KCTkrrVTYCj37pxSDnk0j5R",
+            "6VWHxSxRjK3P1P+Fnu5kdngaTtFdGa10q5vmwWV44vCxY3+Dc1Fv2ScXbAkr6KrR",
+            "MLLAY0VnJIwXD6Gfh45fmy2pYArWMQUsXDVzwmy2Prw7RQZPsvQTFuTBZyKLPlaX",
+            "B3QAVyForUfgDxEQ0lJ0H8TQ4tWwoiwqRHTseKJlEaxh2mTwMQwiLCnePJ51qnUx",
+            "6FyH61B1svEZP3Mtni6IXar3r4C94/J27P6VeKDT8QKBgQDzu8jDoj8IB6XGWiPh",
+            "If8wp07WE9ADKY0LheBndaFCKTG/W0M8oWlcH0w2ASJ4qLx0tRLVgoFuUan5O8hT",
+            "2A2geQIxm2RZVe4q+vPn/uifhNZxhpIJLundTgRs1skVrPrMft5tEtAq0CeOvcyL",
+            "Qpay8kW2sBGmiZylBLb6rL+QWQKBgQDBF0+zTaaZU69Pxu4qx03qqiMQVEFulzwi",
+            "lPB1i24JDmK+wRt8VfDg10Us5Iu3UbrY/TRLcx9E58gh0kz5X8E6fMZB+qzZDuA0",
+            "sxkzymGahNHCqdadHiuR9eH1YUol1/KOB2HtHLqteP3sUlHykVCORpW7FSIR4TLa",
+            "L8B4nQMOJwKBgHpNwqKYqbRn0gHEfbidDKbnbaHy8zCDCym7Fi4UUsUWUsZJD2Y/",
+            "QNVfRyjaTOfrFBYkPr0w7a3kALz2CMI56iyaTEWESkih3A9pOjcyLJzPVaRF+MXu",
+            "6p+IZKQQ63qbAIbZKtfk1tyE8zSnfRpsYZ6N//l6RIEjEJ2lzgPf54iRAoGAKLb8",
+            "pEc8WNpPfhfpQnXyFQg5ColpnqMfF/+l0HNNCXXSFnzricUpXI+n03aBi28dYgHK",
+            "FBq7PjFNfuw0NOUe/nEu8Nyls8MyPYqCRuxmtklJXa2oRksFTuq08aPJGb+2MoKW",
+            "AIRtTITVrg4Rn39KqCV0DxW+sFx295DYGdapvUMCgYEA6pfK5yhlwkK8mKxt7iuA",
+            "GGiHgGCJ20QzYFZj3jVk4oUXtRUJmOrBnkP0okIkb9xfOUAQg3ph0/WRpPVzLlUJ",
+            "YxuooNMiTwD4iAtAhQi9jeBpjlyIlNmSvc4Mcdxaqvj4ylng9l/EZ7P1AbU+fFKP",
+            "LiGIaHOtXGLm5sv96OZG7do=",
             "-----END PRIVATE KEY-----"
         ]
 
-        # 2. Join the elements with exactly one standard newline break character
+        # 2. Join strings natively using programmatic line breaks
         private_key = "\n".join(key_lines) + "\n"
 
         # 3. Construct the Google Cloud service info dictionary mapping
         info = {
             "type": "service_account",
             "project_id": st.secrets["connections"]["gsheets"]["project_id"],
-            "private_key_id": st.secrets["connections"]["gsheets"]["private_key_id"],
+            "private_key_id": "3d065b642ad6e2c2324ef17a2e50d542e892fdb3",
             "private_key": private_key,
             "client_email": st.secrets["connections"]["gsheets"]["client_email"],
             "client_id": st.secrets["connections"]["gsheets"]["client_id"],
@@ -78,8 +78,8 @@ def load_data():
         st.error(f"Failed to connect to Google Sheets: {e}")
         return pd.DataFrame()
 
-# 6. Assign the loading result directly to the expected variable name
-df_projects = load_data() 
+# 6. Store the results directly into the expected global variable
+df_projects = load_data()
 
 
 # --- SECURITY & ADMIN LOGIN ---
