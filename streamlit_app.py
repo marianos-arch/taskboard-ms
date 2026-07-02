@@ -6,12 +6,13 @@ import datetime
 # --- APP CONFIGURATION ---
 st.set_page_config(page_title="Work & Project Dashboard", page_icon="📊", layout="wide")
 
-# --- DATABASE CONNECTION (Google Sheets) ---
 # We retrieve the secrets dictionary and cleanly format the private key string in Python
+# --- DATABASE CONNECTION (Google Sheets) ---
 try:
+    # 1. Grab a copy of the gsheets credentials dictionary from secrets
     credentials_dict = dict(st.secrets["connections"]["gsheets"])
     
-    # We stitch the private key together into one clean string with proper \n line breaks
+    # 2. Safely overwrite the private key with our hardcoded single-line layout
     credentials_dict["private_key"] = (
         "-----BEGIN PRIVATE KEY-----\n"
         "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDlZXU5AT1OHRKz\n"
@@ -39,13 +40,17 @@ try:
         "ZcB7+NOAe+WTkHhfXcG4vKAk\n"
         "-----END PRIVATE KEY-----\n"
     )
+    
+    # 3. CRITICAL FIX: Remove the 'type' string from the dict so it doesn't conflict
+    if "type" in credentials_dict:
+        credentials_dict.pop("type")
+        
+    # 4. Now unpack the dictionary safely without colliding types
     conn = st.connection("gsheets", type=GSheetsConnection, **credentials_dict)
+
 except Exception as e:
-    st.error(f"Configuration dictionary error: {e}")
+    st.error(f"Configuration dictionary fallback triggered: {e}")
     conn = st.connection("gsheets", type=GSheetsConnection)
-
-
-
 @st.cache_data(ttl=0)  # Setting to 0 for instant testing updates!
 def load_data():
     try:
