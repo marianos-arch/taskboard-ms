@@ -8,45 +8,46 @@ import gspread
 # --- APP CONFIGURATION ---
 st.set_page_config(page_title="Work & Project Dashboard", page_icon="📊", layout="wide")
 
-# --- DATABASE CONNECTION (Google Sheets via Normalized Service Account) ---
+# --- DATABASE CONNECTION (Google Sheets via Cleaned Service Account) ---
 @st.cache_data(ttl=0)  # Setting to 0 for instant testing updates!
 def load_data():
     try:
-        # 1. Provide the raw block exactly as it appears
-        raw_key = (
-            "-----BEGIN PRIVATE KEY-----\n"
-            "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDlZXU5AT1OHRKz\n"
-            "qRzNPBNoSzMnpkQ6VZgi6JcKd37edbLvqAIRMsCqFxs+dSeOjWDbecCSG7k6pHVT\n"
-            "b7QSy7T6CY9smaoFj3ketUvZsiEv+DIWnr+0Uk/i6ERK5mRaXoCe92iedXfWggan\n"
-            "3X7LELqlQ5whxlW7WpwWBY0FQodzK0tYy/ITx4z6G7bQWhC4n1etk0D5HEtN/bzd\n"
-            "mzOHBtUoLDQJD80+OS5bt0QVjv8dWmG8Cyf71IzROU0FJkUrGr4MweTpiYcArckK\n"
-            "AtchYyv3B82e9F7gtql1FHOrNMjHdT6mYwr4yTpyY36S/UYHaS/mEiPYkjQ+7rbu\n"
-            "3TnlWQYhAgMBAAECggEAARSpCHd3xzguWB/WFaZwjfd6undXT3ILSTDQ01kMRTaH\n"
-            "PQdM2TFkxHhe5byuDsceO3J3pIiSZxMSxW2bitIgXGQyo4eWzDdokes3PAORkfUI\n"
-            "oWAmlY4kt7Qx7CtpMh7LWtReDw8NHTrYFq7ds820n2Yx5FvXmA4deaIVj76IPlPl\n"
-            "2q+8Qjs30HOpSRLGjgmnQ84BHLd4Jx62BA1IxDMv9pctp42BdI93F9yw9S+ayt4F\n"
-            "wszZhdhYpAG/ZwAFkSfBEWf3VoOZzDo89VeRO9rXPDHWk7XamCDNfMHvGr2iuHyI\n"
-            "xTCmmOYDxoDKTqGBh7PcEQ6d79KuB+RgoqS0PyhEAQKBgQDzLUwon4MuInXodWLq\n"
-            "U0CFiF4Lf/MQ5/UXPSdH5P0pI055K/qsPExfA/nFAHicgSQ3es7ZgFpuf9q/nMu3\n"
-            "/utzWzZ3Tn5fB86IqmT7fU796kZ79c1guG4Q2WTlNKCYLHWwAsjFTNjDvGV5BQ3/\n"
-            "Ev6BE02qZFR0xafS9Co7YgIWoQKBgQDxfiHuYQI1PnuHrt3BL+zE6ehfyLEcD4Aj\n"
-            "npZfujE+ZjBuBde2HxG0zZgO1flZ0dc8+gjtquB0O5KLTQ+8e9MerkjdGPMdSZrRl\n"
-            "aVZ8+aBwWjhItQZnRFpTvR/QPFbdYchpw2IQ+tKta4WJqXOZsmIrDrqHmXTM40be\n"
-            "KG+Cdno/gQKBgAqs2WQLJJoY3y42QQJiZzm1c9NzaXs7g5HimF/amJZ+u0oseROo\n"
-            "jf250fQpAiJ0tN9On9gCf3XMXRD+VB8erL1iqrBwHLIVSKbNPCOiK56P80orzzlI\n"
-            "v2Qz9u7s8YPcp8nzRVcL+ZQWKCo445VoAw4th8JMJzz9FFH5cAUtV0QhAoGBALEs\niaRrU8VgjBzl7IgZ8yodOoFbqqUdsjN1AFzh0Fyk8GEw9g4PzNZS2BHGGQPkkyIX\n"
-            "RiRr49XTZKp/QuaBTCTSZ38+hDYuZ9enSu7x7gXAC188gPAus96P+NE8E7bkULdX\nw5EVlI/rPNPc4JU4zNEuQyfNLGZNsOa43+blqZcBAoGBALM5gszM20oDDd3nS4b6\n"
-            "Fwa+WO36lj/QAlXlb4YXwoTrFaB6gmbSWV4fS61ANoep7fUPw1DXKFMBe+Dqm3i6\npThrZPcxUsWxlCHiSEqvy8+i7GWs59Ddss3Ac/yxypDrn3jU4GRARJ8ZC5uoAXck\n"
-            "ZcB7+NOAe+WTkHhfXcG4vKAk\n"
-            "-----END PRIVATE KEY-----\n"
-        )
+        # 1. Store the exact base64 key chunks inside a clean list with no embedded escaping
+        key_lines = [
+            "-----BEGIN PRIVATE KEY-----",
+            "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDlZXU5AT1OHRKz",
+            "qRzNPBNoSzMnpkQ6VZgi6JcKd37edbLvqAIRMsCqFxs+dSeOjWDbecCSG7k6pHVT",
+            "b7QSy7T6CY9smaoFj3ketUvZsiEv+DIWnr+0Uk/i6ERK5mRaXoCe92iedXfWggan",
+            "3X7LELqlQ5whxlW7WpwWBY0FQodzK0tYy/ITx4z6G7bQWhC4n1etk0D5HEtN/bzd",
+            "mzOHBtUoLDQJD80+OS5bt0QVjv8dWmG8Cyf71IzROU0FJkUrGr4MweTpiYcArckK",
+            "AtchYyv3B82e9F7gtql1FHOrNMjHdT6mYwr4yTpyY36S/UYHaS/mEiPYkjQ+7rbu",
+            "3TnlWQYhAgMBAAECggEAARSpCHd3xzguWB/WFaZwjfd6undXT3ILSTDQ01kMRTaH",
+            "PQdM2TFkxHhe5byuDsceO3J3pIiSZxMSxW2bitIgXGQyo4eWzDdokes3PAORkfUI",
+            "oWAmlY4kt7Qx7CtpMh7LWtReDw8NHTrYFq7ds820n2Yx5FvXmA4deaIVj76IPlPl",
+            "2q+8Qjs30HOpSRLGjgmnQ84BHLd4Jx62BA1IxDMv9pctp42BdI93F9yw9S+ayt4F",
+            "wszZhdhYpAG/ZwAFkSfBEWf3VoOZzDo89VeRO9rXPDHWk7XamCDNfMHvGr2iuHyI",
+            "xTCmmOYDxoDKTqGBh7PcEQ6d79KuB+RgoqS0PyhEAQKBgQDzLUwon4MuInXodWLq",
+            "U0CFiF4Lf/MQ5/UXPSdH5P0pI055K/qsPExfA/nFAHicgSQ3es7ZgFpuf9q/nMu3",
+            "/utzWzZ3Tn5fB86IqmT7fU796kZ79c1guG4Q2WTlNKCYLHWwAsjFTNjDvGV5BQ3/",
+            "Ev6BE02qZFR0xafS9Co7YgIWoQKBgQDxfiHuYQI1PnuHrt3BL+zE6ehfyLEcD4Aj",
+            "npZfujE+ZjBuBde2HxG0zZgO1flZ0dc8+gjtquB0O5KLTQ+8e9MerkjdGPMdSZrRl",
+            "aVZ8+aBwWjhItQZnRFpTvR/QPFbdYchpw2IQ+tKta4WJqXOZsmIrDrqHmXTM40be",
+            "KG+Cdno/gQKBgAqs2WQLJJoY3y42QQJiZzm1c9NzaXs7g5HimF/amJZ+u0oseROo",
+            "jf250fQpAiJ0tN9On9gCf3XMXRD+VB8erL1iqrBwHLIVSKbNPCOiK56P80orzzlI",
+            "v2Qz9u7s8YPcp8nzRVcL+ZQWKCo445VoAw4th8JMJzz9FFH5cAUtV0QhAoGBALEs",
+            "ixRrU8VgjBzl7IgZ8yodOoFbqqUdsjN1AFzh0Fyk8GEw9g4PzNZS2BHGGQPkkyIX",
+            "RiRr49XTZKp/QuaBTCTSZ38+hDYuZ9enSu7x7gXAC188gPAus96P+NE8E7bkULdX",
+            "w5EVlI/rPNPc4JU4zNEuQyfNLGZNsOa43+blqZcBAoGBALM5gszM20oDDd3nS4b6",
+            "Fwa+WO36lj/QAlXlb4YXwoTrFaB6gmbSWV4fS61ANoep7fUPw1DXKFMBe+Dqm3i6",
+            "pThrZPcxUsWxlCHiSEqvy8+i7GWs59Ddss3Ac/yxypDrn3jU4GRARJ8ZC5uoAXck",
+            "ZcB7+NOAe+WTkHhfXcG4vKAk",
+            "-----END PRIVATE KEY-----"
+        ]
 
-        # 2. CRITICAL FIX: Clean the string entirely of double-escaped blocks and empty lines
-        private_key = raw_key.replace("\\n", "\n")
-        while "\n\n" in private_key:
-            private_key = private_key.replace("\n\n", "\n")
+        # 2. Join the elements with exactly one standard newline break character
+        private_key = "\n".join(key_lines) + "\n"
 
-        # 3. Reconstruct the service account mapping
+        # 3. Construct the Google Cloud service info dictionary mapping
         info = {
             "type": "service_account",
             "project_id": st.secrets["connections"]["gsheets"]["project_id"],
@@ -61,12 +62,12 @@ def load_data():
             "universe_domain": "googleapis.com"
         }
 
-        # 4. Authenticate natively using gspread
+        # 4. Authenticate via Google OAuth
         scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(info, scopes=scopes)
         client = gspread.authorize(creds)
 
-        # 5. Connect and pull your sheet rows
+        # 5. Access the Google Sheet document via URL
         spreadsheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         sheet = client.open_by_url(spreadsheet_url).sheet1
         
@@ -77,8 +78,9 @@ def load_data():
         st.error(f"Failed to connect to Google Sheets: {e}")
         return pd.DataFrame()
 
-# 6. FIX: Name the output variable exactly 'df_projects' so line 97 can read it!
-df_projects = load_data()
+# 6. Assign the loading result directly to the expected variable name
+df_projects = load_data() 
+
 
 # --- SECURITY & ADMIN LOGIN ---
 st.sidebar.title("🔐 Admin Panel")
