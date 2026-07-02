@@ -54,8 +54,12 @@ def load_data():
         st.error(f"Failed to connect to Google Sheets: {e}")
         return pd.DataFrame()
 
-# 7. Store the results directly into the global variable your dashboard expects
+# --- FETCH & PREPARE DATA ---
 df_projects = load_data()
+
+# CRITICAL FIX: Convert the text column into valid Python datetime objects
+if not df_projects.empty and 'deadline' in df_projects.columns:
+    df_projects['deadline'] = pd.to_datetime(df_projects['deadline'], errors='coerce')
 
 # --- SECURITY & ADMIN LOGIN ---
 st.sidebar.title("🔐 Admin Panel")
