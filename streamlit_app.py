@@ -348,13 +348,25 @@ with tab3:
                     # 2. Target Deadline
                     target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
                     st.markdown(f"**Target Deadline:** {target_date}")
-                    
                     # 🖼️ 3. Project Image Preview (Directly below the title/deadline)
                     if 'image_url' in row and pd.notna(row['image_url']) and str(row['image_url']).strip() != "":
-                        st.image(row['image_url'], caption=f"Preview: {row['title']}", use_container_width=True)
+                        raw_url = str(row['image_url']).strip()
+                        
+                        # AUTOMATIC GOOGLE DRIVE LINK CONVERSION
+                        if "drive.google.com/file/d/" in raw_url:
+                            try:
+                                # Extract the ID between /d/ and the next /
+                                file_id = raw_url.split("/file/d/")[1].split("/")[0]
+                                display_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+                            except Exception:
+                                display_url = raw_url # Fallback if split fails
+                        else:
+                            display_url = raw_url
+                    
+                        st.image(display_url, caption=f"Preview: {row['title']}", use_container_width=True)
                     else:
                         st.caption("📷 No preview image attached for this deliverable.")
-                    
+                        
                     # 4. Description
                     st.markdown(f"*{row['description']}*")
                     
