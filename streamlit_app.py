@@ -345,6 +345,12 @@ with tab3:
                     # 1. Title
                     st.markdown(f"### ✅ {row['title']}")
                     
+                    # 2. Re-Added: Metadata Pills / Context
+                    tags_html = get_pill_html(row['department'], "dept")
+                    if 'project_type' in row and row['project_type']:
+                        tags_html += get_pill_html(row['project_type'], "type")
+                    st.markdown(tags_html, unsafe_allow_html=True)
+                    
                     # 2. Target Deadline
                     target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
                     st.markdown(f"**Target Deadline:** {target_date}")
