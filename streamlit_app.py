@@ -166,14 +166,21 @@ with tab1:
                         proj_type_tag = f" | {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
                         st.markdown(f"**{row['title']}** ({row['department']}{proj_type_tag})")
                         target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
-                        st.caption(f"Progress: {row['progress']}% | Target: {target_date}")
+                        
+                        # 📊 Added the small progress bar here!
+                        progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
+                        # Clamp between 0 and 100 just to prevent edge-case errors
+                        progress_val = max(0, min(100, progress_val)) 
+                        st.progress(progress_val / 100)
+                        
+                        st.caption(f"Progress: {progress_val}% | Target: {target_date}")
             else:
                 st.info("Routine maintenance and backlog tasks.")
         else:
             st.info("No active projects set.")
 
     with col_block:
-        # ADJUSTMENT: Now lists projects that are flagged with your new Pending Instructions status
+        # Now lists projects that are flagged with your new Pending Instructions status
         st.subheader("⚠️ Pending Instructions & Decisions")
         if not active_df.empty:
             blocked_df = active_df[active_df["status"] == "🔴 Pending Further Instructions"]
@@ -182,6 +189,12 @@ with tab1:
                     with st.container(border=True):
                         st.markdown(f"🔴 **{row['title']}**")
                         st.markdown(f"**Current Impediment:** {row['notes']}")
+                        
+                        # Optional: Added a progress bar for blocked items too, so you know how close they are to the finish line
+                        progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
+                        progress_val = max(0, min(100, progress_val))
+                        st.progress(progress_val / 100)
+                        st.caption(f"Stuck at: {progress_val}%")
             else:
                 st.success("No items requiring instructions at this time.")
         else:
