@@ -117,13 +117,13 @@ ACTIVE_STATUS_OPTIONS = [s for s in STATUS_OPTIONS if s != "🟢 Completed"]
 def get_pill_html(text, segment_type="dept"):
     # Base configuration mapping for dynamic colors
     colors = {
-        "At-Promise": {"bg": "#e0f2fe", "text": "#0369a1"},    # Light Blue
-        "ECM": {"bg": "#f3e8ff", "text": "#6b21a8"},           # Light Purple
-        "Admin": {"bg": "#f1f5f9", "text": "#475569"},         # Grey
-        "Other": {"bg": "#fef3c7", "text": "#92400e"},         # Amber
+        "At-Promise": {"bg": "#dcfce7", "text": "#15803d"},    # Pastel Green
+        "ECM": {"bg": "#fef9c3", "text": "#854d0e"},           # Pastel Yellow
+        "Admin": {"bg": "#fee2e2", "text": "#991b1b"},         # Light Red
+        "Other": {"bg": "#e0f2fe", "text": "#0369a1"},         # Pastel Blue
         
         "🔵 In-Progress": {"bg": "#dbeafe", "text": "#1e40af"},
-        "🟡 In-Progress (Delayed)": {"bg": "#fee2e2", "text": "#991b1b"},
+        "🟡 Delayed": {"bg": "#fee2e2", "text": "#991b1b"},
         "🟠 In-Development (Idea Board)": {"bg": "#ffedd5", "text": "#9a3412"},
         "🔴 Pending Further Instructions": {"bg": "#fef2f2", "text": "#b91c1c"},
         "🟢 Completed": {"bg": "#dcfce7", "text": "#166534"}
@@ -281,7 +281,7 @@ with tab2:
     else:
         for idx, row in active_df.iterrows():
             type_label = f" — {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
-            with st.expander(f"{row['status']} - {row['title']} — [{row['department']}{type_label}]", expanded=True):
+            with st.expander(f"{row['status']} - {row['title']} — [{row['department']}{type_label}]", expanded=False):
                 c1, c2 = st.columns([2, 1])
                 
                 with c1:
