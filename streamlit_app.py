@@ -345,28 +345,43 @@ with tab3:
                     # 1. Title
                     st.markdown(f"### ✅ {row['title']}")
                     
+# --- TAB 3: COMPLETED ARCHIVE ---
+with tab3:
+    st.header("📦 Corporate Portfolio Archive")
+    
+    if completed_df.empty:
+        st.info("Archive is empty. Completed projects will automatically shift here.")
+    else:
+        for idx, row in completed_df.iterrows():
+            with st.container(border=True):
+                col_arch1, col_arch2 = st.columns([3, 1])
+                with col_arch1:
+                    # 1. Title
+                    st.markdown(f"### ✅ {row['title']}")
+                    
                     # 2. Target Deadline
                     target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
                     st.markdown(f"**Target Deadline:** {target_date}")
-                    # 🖼️ 3. Project Image Preview (Directly below the title/deadline)
+                    
+                    # 🖼️ 3. Project Image Preview with Auto Google Drive Conversion
                     if 'image_url' in row and pd.notna(row['image_url']) and str(row['image_url']).strip() != "":
                         raw_url = str(row['image_url']).strip()
                         
-                        # AUTOMATIC GOOGLE DRIVE LINK CONVERSION
+                        # Check if it's a standard Google Drive share link
                         if "drive.google.com/file/d/" in raw_url:
                             try:
-                                # Extract the ID between /d/ and the next /
+                                # Extracts '1BT1CphZCd2aUkBC0h37tY3WZ_pvAw4EP' dynamically
                                 file_id = raw_url.split("/file/d/")[1].split("/")[0]
                                 display_url = f"https://drive.google.com/uc?export=download&id={file_id}"
                             except Exception:
-                                display_url = raw_url # Fallback if split fails
+                                display_url = raw_url  # Fallback if split fails
                         else:
                             display_url = raw_url
-                    
+
                         st.image(display_url, caption=f"Preview: {row['title']}", use_container_width=True)
                     else:
                         st.caption("📷 No preview image attached for this deliverable.")
-                        
+                    
                     # 4. Description
                     st.markdown(f"*{row['description']}*")
                     
@@ -375,6 +390,7 @@ with tab3:
                         st.link_button("📂 Access Deliverable", row['link'], use_container_width=True)
                     else:
                         st.caption("No public link attached.")
+                    
 
 # --- TAB 4: ADMIN CREATION TAB ---
 if IS_ADMIN and tab4 is not None:
