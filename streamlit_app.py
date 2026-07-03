@@ -106,7 +106,7 @@ TYPE_OPTIONS = ["Tool", "Operations", "Forms", "Marketing", "Education", "Resear
 
 STATUS_OPTIONS = [
     "🔵 In-Progress", 
-    "🟡 Delayed", 
+    "🟡 In-Progress (Delayed)", 
     "🟠 In-Development (Idea Board)", 
     "🔴 Pending Further Instructions", 
     "🟢 Completed"
@@ -123,7 +123,7 @@ def get_pill_html(text, segment_type="dept"):
         "Other": {"bg": "#fef3c7", "text": "#92400e"},         # Amber
         
         "🔵 In-Progress": {"bg": "#dbeafe", "text": "#1e40af"},
-        "🟡 Delayed": {"bg": "#fee2e2", "text": "#991b1b"},
+        "🟡 In-Progress (Delayed)": {"bg": "#fee2e2", "text": "#991b1b"},
         "🟠 In-Development (Idea Board)": {"bg": "#ffedd5", "text": "#9a3412"},
         "🔴 Pending Further Instructions": {"bg": "#fef2f2", "text": "#b91c1c"},
         "🟢 Completed": {"bg": "#dcfce7", "text": "#166534"}
@@ -244,7 +244,7 @@ with tab_kanban:
     # Filter targets
     kanban_statuses = [
         ("🔵 In-Progress", kanban_cols[0]),
-        ("🟡 Delayed", kanban_cols[1]),
+        ("🟡 In-Progress (Delayed)", kanban_cols[1]),
         ("🟠 In-Development (Idea Board)", kanban_cols[2]),
         ("🔴 Pending Further Instructions", kanban_cols[3])
     ]
