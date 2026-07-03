@@ -244,7 +244,7 @@ with tab_kanban:
     # Filter targets
     kanban_statuses = [
         ("🔵 In-Progress", kanban_cols[0]),
-        ("🟡 In-Progress (Delayed)", kanban_cols[1]),
+        ("🟡 In-Progress j (Delayed)", kanban_cols[1]),
         ("🟠 In-Development (Idea Board)", kanban_cols[2]),
         ("🔴 Pending Further Instructions", kanban_cols[3])
     ]
