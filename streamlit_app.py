@@ -345,24 +345,14 @@ with tab3:
                     # 1. Title
                     st.markdown(f"### ✅ {row['title']}")
                     
-                    # 2. Metadata Pills / Context
-                    dept_color = DEPT_COLORS.get(row['department'], "#f3f4f6")
-                    type_color = TYPE_COLORS.get(row.get('project_type', ''), "#f3f4f6")
-                    tags_html = create_pill_html(row['department'], dept_color)
-                    if 'project_type' in row and row['project_type']:
-                        tags_html += create_pill_html(row['project_type'], type_color)
-                    
-                    st.markdown(tags_html, unsafe_allow_html=True)
-                    
+                    # 2. Target Deadline
                     target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
                     st.markdown(f"**Target Deadline:** {target_date}")
                     
-                    # 🖼️ 3. NEW: Project Image Preview (Between Metadata and Description)
+                    # 🖼️ 3. Project Image Preview (Directly below the title/deadline)
                     if 'image_url' in row and pd.notna(row['image_url']) and str(row['image_url']).strip() != "":
-                        # Adjust width or use a fixed width like width=300 if you want them smaller
                         st.image(row['image_url'], caption=f"Preview: {row['title']}", use_container_width=True)
                     else:
-                        # Optional: Render a clean, tiny text-based placeholder line instead of a heavy blank block
                         st.caption("📷 No preview image attached for this deliverable.")
                     
                     # 4. Description
