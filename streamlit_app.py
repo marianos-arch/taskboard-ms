@@ -179,28 +179,32 @@ with tab1:
         if not focus_df.empty:
             for _, row in focus_df.iterrows():
                 with st.container(border=True):
-                    # Styled Title Line with HTML Pills
-                    dept_pill = get_pill_html(row['department'], "dept")
-                    type_pill = get_pill_html(row.get('project_type', 'Idea'), "type")
-                    status_pill = get_pill_html(row['status'], "status")
-                    
-                    st.markdown(f"<h5>{row['title']}</h5>", unsafe_allow_html=True)
-                    st.markdown(f"{status_pill} {dept_pill} {type_pill}", unsafe_allow_html=True)
-                    
+                    # Construct type and department context string
+                    proj_type_tag = f" | {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
+                    st.markdown(f"**{row['title']}** ({row['department']}{proj_type_tag})")
+                    # Handle deadline format safely
                     target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
-                    progress_val = max(0, min(100, int(row['progress']) if pd.notna(row['progress']) else 0)) 
-                    
+                    # Process progress value safely
+                    progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
+                    progress_val = max(0, min(100, progress_val)) 
+
+                    # Generate the custom horizontal slider line (10 steps total)
+                    # Note: Utilizing a non-breaking space character configuration maintains strict alignment layout inside web wrappers
                     filled_blocks = progress_val // 10
                     empty_blocks = 10 - filled_blocks
                     text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
-                    
-                    st.markdown(" ")
+
+                    # Single-line, elegant minimalist layout output
                     st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
+
         else:
             st.info("Routine maintenance and backlog tasks.")
+
     else:
         st.info("No active projects set.")
 
+
+    # Visual separator between the stacked sections
     st.markdown(" ")
     st.markdown("---")
     st.markdown(" ")
@@ -211,23 +215,23 @@ with tab1:
         if not blocked_df.empty:
             for _, row in blocked_df.iterrows():
                 with st.container(border=True):
-                    dept_pill = get_pill_html(row['department'], "dept")
-                    type_pill = get_pill_html(row.get('project_type', 'Idea'), "type")
-                    
-                    st.markdown(f"<h5>🔴 {row['title']}</h5>", unsafe_allow_html=True)
-                    st.markdown(f"{dept_pill} {type_pill}", unsafe_allow_html=True)
+                    st.markdown(f"🔴 **{row['title']}**")
                     st.markdown(f"**Current Impediment:** {row['notes']}")
-                    
-                    progress_val = max(0, min(100, int(row['progress']) if pd.notna(row['progress']) else 0))
+                    # Adding the matching custom minimal slider to pending items too for layout parity
+                    progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
+                    progress_val = max(0, min(100, progress_val))
                     filled_blocks = progress_val // 10
                     empty_blocks = 10 - filled_blocks
                     text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
-                    
+
                     st.caption(f"Stuck at: {progress_val}% {text_bar}")
+
         else:
             st.success("No items requiring instructions at this time.")
+
     else:
         st.success("Clear queue.")
+
 
 # --- TAB: KANBAN BOARD ---
 with tab_kanban:
