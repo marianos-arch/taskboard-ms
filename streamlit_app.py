@@ -96,10 +96,6 @@ if admin_password:
             IS_ADMIN = True
             st.sidebar.success("Local Test Auth Successful!")
 
-# --- DATA SEPARATION ---
-active_df = df_projects[df_projects["progress"] < 100] if not df_projects.empty else pd.DataFrame()
-completed_df = df_projects[df_projects["progress"] == 100] if not df_projects.empty else pd.DataFrame()
-
 # --- OPTIONS LISTS ---
 DEPT_OPTIONS = ["At-Promise", "ECM", "Admin", "Other"]
 TYPE_OPTIONS = ["Tool", "Operations", "Forms", "Marketing", "Education", "Research", "Idea"]
@@ -115,7 +111,6 @@ ACTIVE_STATUS_OPTIONS = [s for s in STATUS_OPTIONS if s != "🟢 Completed"]
 
 # --- HELPER FUNCTION: COLOR-CODED PILLS ---
 def get_pill_html(text, segment_type="dept"):
-    # Base configuration mapping for dynamic colors
     colors = {
         "At-Promise": {"bg": "#dcfce7", "text": "#15803d"},    # Pastel Green
         "ECM": {"bg": "#fef9c3", "text": "#854d0e"},           # Pastel Yellow
@@ -124,11 +119,12 @@ def get_pill_html(text, segment_type="dept"):
         
         "🔵 In-Progress": {"bg": "#dbeafe", "text": "#1e40af"},
         "🟡 Delayed": {"bg": "#fee2e2", "text": "#991b1b"},
+        "🟡 In-Progress (Delayed)": {"bg": "#fee2e2", "text": "#991b1b"},
         "🟠 In-Development (Idea Board)": {"bg": "#ffedd5", "text": "#9a3412"},
         "🔴 Pending Further Instructions": {"bg": "#fef2f2", "text": "#b91c1c"},
         "🟢 Completed": {"bg": "#dcfce7", "text": "#166534"},
 
-        # Product / Project Types (UPDATED)
+        # Product / Project Types
         "Tool": {"bg": "#e0f2fe", "text": "#0369a1"},          # Light Blue
         "Operations": {"bg": "#f3f4f6", "text": "#374151"},    # Light Grey
         "Forms": {"bg": "#ffedd5", "text": "#c2410c"},         # Pastel Orange
@@ -136,12 +132,14 @@ def get_pill_html(text, segment_type="dept"):
         "Education": {"bg": "#dcfce7", "text": "#15803d"},     # Light Green
         "Idea": {"bg": "#f3e8ff", "text": "#6b21a8"},          # Light Purple
         "Research": {"bg": "#ecfeff", "text": "#0e7490"}       # Cyan
-        
     }
     
-    # Fallback default configuration for Types or missing options
     cfg = colors.get(text, {"bg": "#f0fdf4", "text": "#15803d"} if segment_type == "type" else {"bg": "#e2e8f0", "text": "#1e293b"})
     return f'<span style="background-color: {cfg["bg"]}; color: {cfg["text"]}; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 4px; display: inline-block;">{text}</span>'
+
+# --- DATA SEPARATION ---
+active_df = df_projects[df_projects["progress"] < 100] if not df_projects.empty else pd.DataFrame()
+completed_df = df_projects[df_projects["progress"] == 100] if not df_projects.empty else pd.DataFrame()
 
 # --- MAIN INTERFACE ---
 st.title("My Task Dashboard")
@@ -189,32 +187,22 @@ with tab1:
         if not focus_df.empty:
             for _, row in focus_df.iterrows():
                 with st.container(border=True):
-                    # Construct type and department context string
                     proj_type_tag = f" | {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
                     st.markdown(f"**{row['title']}** ({row['department']}{proj_type_tag})")
-                    # Handle deadline format safely
                     target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
-                    # Process progress value safely
                     progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
                     progress_val = max(0, min(100, progress_val)) 
 
-                    # Generate the custom horizontal slider line (10 steps total)
-                    # Note: Utilizing a non-breaking space character configuration maintains strict alignment layout inside web wrappers
                     filled_blocks = progress_val // 10
                     empty_blocks = 10 - filled_blocks
                     text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
 
-                    # Single-line, elegant minimalist layout output
                     st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
-
         else:
             st.info("Routine maintenance and backlog tasks.")
-
     else:
         st.info("No active projects set.")
 
-
-    # Visual separator between the stacked sections
     st.markdown(" ")
     st.markdown("---")
     st.markdown(" ")
@@ -227,7 +215,6 @@ with tab1:
                 with st.container(border=True):
                     st.markdown(f"🔴 **{row['title']}**")
                     st.markdown(f"**Current Impediment:** {row['notes']}")
-                    # Adding the matching custom minimal slider to pending items too for layout parity
                     progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
                     progress_val = max(0, min(100, progress_val))
                     filled_blocks = progress_val // 10
@@ -235,10 +222,8 @@ with tab1:
                     text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
 
                     st.caption(f"Stuck at: {progress_val}% {text_bar}")
-
         else:
             st.success("No items requiring instructions at this time.")
-
     else:
         st.success("Clear queue.")
 
@@ -248,10 +233,8 @@ with tab_kanban:
     st.header("📋 Visual Workflow Kanban Board")
     st.write("Dynamic columns grouped automatically by task status definitions.")
     
-    # Layout 4 responsive columns across the UI space
     kanban_cols = st.columns(4)
     
-    # Filter targets
     kanban_statuses = [
         ("🔵 In-Progress", kanban_cols[0]),
         ("🟡 In-Progress (Delayed)", kanban_cols[1]),
@@ -261,7 +244,6 @@ with tab_kanban:
     
     for status_name, col_obj in kanban_statuses:
         with col_obj:
-            # Styled Column Header Block using Markdown
             st.markdown(f"### {status_name.split(' ')[0]} {status_name.split(' ')[1]}")
             st.markdown("---")
             
@@ -276,124 +258,180 @@ with tab_kanban:
                             dept_pill = get_pill_html(row['department'], "dept")
                             st.markdown(dept_pill, unsafe_allow_html=True)
                             
-                            # Tiny progress calculation indicator
                             p_val = int(row['progress']) if pd.notna(row['progress']) else 0
                             st.caption(f"Progress: {p_val}%")
             else:
                 st.caption("_Empty Dataset_")
 
-# --- TAB 2: ACTIVE PROJECTS ---
+
+# --- TAB 2: ACTIVE PROJECTS (WITH FILTER ENGINE) ---
 with tab2:
     st.header("🚀 Ongoing Project Pipelines")
     
     if active_df.empty:
         st.info("No active projects found.")
     else:
-        for idx, row in active_df.iterrows():
-            type_label = f" — {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
-            with st.expander(f"{row['status']} - {row['title']} — [{row['department']}{type_label}]", expanded=False):
-                c1, c2 = st.columns([2, 1])
-                
-                with c1:
-                    st.markdown(f"**Description:** {row['description']}")
-                    st.markdown(f"**Partners / Collaboration:** {row['partner'] if row['partner'] else 'Solo Item'}")
-                    if row['notes']:
-                        st.markdown(f"**Latest Updates / Notes:** {row['notes']}")
-                
-                with c2:
-                    target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
-                    st.markdown(f"📆 **Deadline:** {target_date}")
+        # Subtle inline filter toolbar
+        f_col1, f_col2, f_col3, f_col4 = st.columns(4)
+        with f_col1:
+            sel_dept = st.selectbox("Dept Filter", ["All"] + DEPT_OPTIONS, key="act_f_dept")
+        with f_col2:
+            sel_type = st.selectbox("Type Filter", ["All"] + TYPE_OPTIONS, key="act_f_type")
+        with f_col3:
+            sel_status = st.selectbox("Status Filter", ["All"] + ACTIVE_STATUS_OPTIONS, key="act_f_stat")
+        with f_col4:
+            sort_by = st.selectbox("Sort By", ["Deadline (Earliest)", "Deadline (Latest)", "Progress (Lowest)", "Progress (Highest)"], key="act_sort")
+        
+        # Apply logic filtering
+        filtered_active = active_df.copy()
+        if sel_dept != "All":
+            filtered_active = filtered_active[filtered_active["department"] == sel_dept]
+        if sel_type != "All":
+            filtered_active = filtered_active[filtered_active["project_type"] == sel_type]
+        if sel_status != "All":
+            filtered_active = filtered_active[filtered_active["status"] == sel_status]
+            
+        # Apply sorting logic
+        if sort_by == "Deadline (Earliest)":
+            filtered_active = filtered_active.sort_values(by="deadline", ascending=True, na_position="last")
+        elif sort_by == "Deadline (Latest)":
+            filtered_active = filtered_active.sort_values(by="deadline", ascending=False, na_position="last")
+        elif sort_by == "Progress (Lowest)":
+            filtered_active = filtered_active.sort_values(by="progress", ascending=True)
+        elif sort_by == "Progress (Highest)":
+            filtered_active = filtered_active.sort_values(by="progress", ascending=False)
+
+        st.markdown("---")
+
+        if filtered_active.empty:
+            st.caption("No active items matching your selection filters.")
+        else:
+            for idx, row in filtered_active.iterrows():
+                type_label = f" — {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
+                with st.expander(f"{row['status']} - {row['title']} — [{row['department']}{type_label}]", expanded=False):
+                    c1, c2 = st.columns([2, 1])
                     
-                    if IS_ADMIN:
-                        new_progress = st.slider("Update Progress", 0, 100, int(row['progress']), key=f"p_{idx}")
-                        curr_status = row['status'] if row['status'] in ACTIVE_STATUS_OPTIONS else ACTIVE_STATUS_OPTIONS[0]
-                        new_status = st.selectbox("Update Status", STATUS_OPTIONS, index=STATUS_OPTIONS.index(curr_status), key=f"s_{idx}")
+                    with c1:
+                        st.markdown(f"**Description:** {row['description']}")
+                        st.markdown(f"**Partners / Collaboration:** {row['partner'] if row['partner'] else 'Solo Item'}")
+                        if row['notes']:
+                            st.markdown(f"**Latest Updates / Notes:** {row['notes']}")
+                    
+                    with c2:
+                        target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
+                        st.markdown(f"📆 **Deadline:** {target_date}")
                         
-                        curr_type = row['project_type'] if ('project_type' in row and row['project_type'] in TYPE_OPTIONS) else TYPE_OPTIONS[0]
-                        new_type = st.selectbox("Update Project Type", TYPE_OPTIONS, index=TYPE_OPTIONS.index(curr_type), key=f"t_{idx}")
-
-                        is_focused_now = "TRUE" if row['weekly_focus'] == "TRUE" else "FALSE"
-                        new_focus_selection = st.selectbox("Set Weekly Focus", options=["FALSE", "TRUE"], index=["FALSE", "TRUE"].index(is_focused_now), key=f"f_{idx}")
-                        
-                        new_notes = st.text_area("Edit Update Notes", value=row['notes'], key=f"n_{idx}")
-                        new_link = st.text_input("Attach Final Deliverable URL", value=row['link'], key=f"l_{idx}")
-                        
-                        if st.button("Save Changes", key=f"btn_{idx}"):
-                            if new_status == "🟢 Completed":
-                                df_projects.at[idx, 'progress'] = 100
-                            else:
-                                df_projects.at[idx, 'progress'] = new_progress
-                                
-                            df_projects.at[idx, 'status'] = "🟢 Completed" if new_progress == 100 else new_status
-                            df_projects.at[idx, 'project_type'] = new_type
-                            df_projects.at[idx, 'weekly_focus'] = new_focus_selection
-                            df_projects.at[idx, 'notes'] = new_notes
-                            df_projects.at[idx, 'link'] = new_link
+                        if IS_ADMIN:
+                            new_progress = st.slider("Update Progress", 0, 100, int(row['progress']), key=f"p_{idx}")
+                            curr_status = row['status'] if row['status'] in ACTIVE_STATUS_OPTIONS else ACTIVE_STATUS_OPTIONS[0]
+                            new_status = st.selectbox("Update Status", STATUS_OPTIONS, index=STATUS_OPTIONS.index(curr_status), key=f"s_{idx}")
                             
-                            if save_dataframe_to_gsheet(df_projects):
-                                st.cache_data.clear()
-                                st.success("Database rows synchronized successfully!")
-                                st.rerun()
-                    else:
-                        st.write("Progress Meter:")
-                        st.progress(int(row['progress']) / 100)
-                        st.write(f"Current Status: **{row['status']}**")
-                        if row['weekly_focus'] == "TRUE":
-                            st.warning("🎯 Marked as a high priority for this week.")
+                            curr_type = row['project_type'] if ('project_type' in row and row['project_type'] in TYPE_OPTIONS) else TYPE_OPTIONS[0]
+                            new_type = st.selectbox("Update Project Type", TYPE_OPTIONS, index=TYPE_OPTIONS.index(curr_type), key=f"t_{idx}")
 
-# --- TAB 3: COMPLETED ARCHIVE ---
+                            is_focused_now = "TRUE" if row['weekly_focus'] == "TRUE" else "FALSE"
+                            new_focus_selection = st.selectbox("Set Weekly Focus", options=["FALSE", "TRUE"], index=["FALSE", "TRUE"].index(is_focused_now), key=f"f_{idx}")
+                            
+                            new_notes = st.text_area("Edit Update Notes", value=row['notes'], key=f"n_{idx}")
+                            new_link = st.text_input("Attach Final Deliverable URL", value=row['link'], key=f"l_{idx}")
+                            
+                            if st.button("Save Changes", key=f"btn_{idx}"):
+                                if new_status == "🟢 Completed":
+                                    df_projects.at[idx, 'progress'] = 100
+                                else:
+                                    df_projects.at[idx, 'progress'] = new_progress
+                                    
+                                df_projects.at[idx, 'status'] = "🟢 Completed" if new_progress == 100 else new_status
+                                df_projects.at[idx, 'project_type'] = new_type
+                                df_projects.at[idx, 'weekly_focus'] = new_focus_selection
+                                df_projects.at[idx, 'notes'] = new_notes
+                                df_projects.at[idx, 'link'] = new_link
+                                
+                                if save_dataframe_to_gsheet(df_projects):
+                                    st.cache_data.clear()
+                                    st.success("Database rows synchronized successfully!")
+                                    st.rerun()
+                        else:
+                            st.write("Progress Meter:")
+                            st.progress(int(row['progress']) / 100)
+                            st.write(f"Current Status: **{row['status']}**")
+                            if row['weekly_focus'] == "TRUE":
+                                st.warning("🎯 Marked as a high priority for this week.")
+
+
+# --- TAB 3: COMPLETED ARCHIVE (WITH FILTER ENGINE) ---
 with tab3:
     st.header("📦 Corporate Portfolio Archive")
     
     if completed_df.empty:
         st.info("Archive is empty. Completed projects will automatically shift here.")
     else:
-        for idx, row in completed_df.iterrows():
-            with st.container(border=True):
-                col_arch1, col_arch2 = st.columns([3, 1])
-                with col_arch1:
-                    # 1. Title
-                    st.markdown(f"### ✅ {row['title']}")
-                    
-                    # 2. Re-Added: Metadata Pills / Context
-                    tags_html = get_pill_html(row['department'], "dept")
-                    if 'project_type' in row and row['project_type']:
-                        tags_html += get_pill_html(row['project_type'], "type")
-                    st.markdown(tags_html, unsafe_allow_html=True)
-                    
-                    # 2. Target Deadline
-                    # target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
-                    # st.markdown(f"**Target Deadline:** {target_date}")
-                    
-                    # 🖼️ 3. Project Image Preview (Resized & Controlled)
-                    if 'image_url' in row and pd.notna(row['image_url']) and str(row['image_url']).strip() != "":
-                        raw_url = str(row['image_url']).strip()
-                        
-                        if "drive.google.com/file/d/" in raw_url:
-                            try:
-                                file_id = raw_url.split("/file/d/")[1].split("/")[0]
-                                display_url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
-                            except Exception:
-                                display_url = raw_url
-                        else:
-                            display_url = raw_url
+        # Subtle inline filter toolbar
+        arch_col1, arch_col2, arch_col3 = st.columns([1, 1, 2])
+        with arch_col1:
+            arch_dept = st.selectbox("Dept Filter", ["All"] + DEPT_OPTIONS, key="arch_f_dept")
+        with arch_col2:
+            arch_type = st.selectbox("Type Filter", ["All"] + TYPE_OPTIONS, key="arch_f_type")
+        with arch_col3:
+            arch_sort = st.selectbox("Sort By", ["Deadline (Latest)", "Deadline (Earliest)"], key="arch_sort")
 
-                        # ADJUST SIZE HERE: [2, 3] means the image takes up 40% width. 
-                        # Change to [1, 3] for 25% width, or [1, 1] for 50% width.
-                        img_col, spacer_col = st.columns([2, 3])
-                        with img_col:
-                            st.image(display_url, caption=f"Preview: {row['title']}", use_container_width=True)
-                    else:
-                        st.caption("📷 No preview image attached for this deliverable.")
-                    
-                    # 4. Description
-                    st.markdown(f"*{row['description']}*")
-                    
-                with col_arch2:
-                    if pd.notna(row['link']) and str(row['link']).strip() != "":
-                        st.link_button("📂 Access Deliverable", row['link'], use_container_width=True)
-                    else:
-                        st.caption("No public link attached.")
+        # Apply logic filtering
+        filtered_arch = completed_df.copy()
+        if arch_dept != "All":
+            filtered_arch = filtered_arch[filtered_arch["department"] == arch_dept]
+        if arch_type != "All":
+            filtered_arch = filtered_arch[filtered_arch["project_type"] == arch_type]
+
+        # Apply sorting logic
+        if arch_sort == "Deadline (Latest)":
+            filtered_arch = filtered_arch.sort_values(by="deadline", ascending=False, na_position="last")
+        elif arch_sort == "Deadline (Earliest)":
+            filtered_arch = filtered_arch.sort_values(by="deadline", ascending=True, na_position="last")
+
+        st.markdown("---")
+
+        if filtered_arch.empty:
+            st.caption("No archived items matching your selection filters.")
+        else:
+            for idx, row in filtered_arch.iterrows():
+                with st.container(border=True):
+                    col_arch1, col_arch2 = st.columns([3, 1])
+                    with col_arch1:
+                        st.markdown(f"### ✅ {row['title']}")
+                        
+                        tags_html = get_pill_html(row['department'], "dept")
+                        if 'project_type' in row and row['project_type']:
+                            tags_html += get_pill_html(row['project_type'], "type")
+                        st.markdown(tags_html, unsafe_allow_html=True)
+                        
+                        target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
+                        st.markdown(f"**Completed Date / Deadline Context:** {target_date}")
+                        
+                        if 'image_url' in row and pd.notna(row['image_url']) and str(row['image_url']).strip() != "":
+                            raw_url = str(row['image_url']).strip()
+                            if "drive.google.com/file/d/" in raw_url:
+                                try:
+                                    file_id = raw_url.split("/file/d/")[1].split("/")[0]
+                                    display_url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
+                                except Exception:
+                                    display_url = raw_url
+                            else:
+                                display_url = raw_url
+
+                            img_col, spacer_col = st.columns([2, 3])
+                            with img_col:
+                                st.image(display_url, caption=f"Preview: {row['title']}", use_container_width=True)
+                        else:
+                            st.caption("📷 No preview image attached for this deliverable.")
+                        
+                        st.markdown(f"*{row['description']}*")
+                        
+                    with col_arch2:
+                        if pd.notna(row['link']) and str(row['link']).strip() != "":
+                            st.link_button("📂 Access Deliverable", row['link'], use_container_width=True)
+                        else:
+                            st.caption("No public link attached.")
+
 
 # --- TAB 4: ADMIN CREATION TAB ---
 if IS_ADMIN and tab4 is not None:
