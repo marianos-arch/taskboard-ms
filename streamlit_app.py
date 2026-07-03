@@ -104,6 +104,10 @@ if admin_password:
 active_df = df_projects[df_projects["progress"] < 100] if not df_projects.empty else pd.DataFrame()
 completed_df = df_projects[df_projects["progress"] == 100] if not df_projects.empty else pd.DataFrame()
 
+# UPDATE THESE LISTS
+DEPT_OPTIONS = ["At-Promise", "ECM", "Admin", "Other"]
+TYPE_OPTIONS = ["Tool", "Operations", "Forms", "Marketing", "Education", "Research", "Idea"]
+
 # --- MAIN INTERFACE ---
 st.title("My Task Dashboard")
 st.write("Hello! This is my dashboard that tracks my active projects, collaborations, ideas, and general tasks given to me.")
@@ -209,6 +213,7 @@ with tab2:
                         if st.button("Save Changes", key=f"btn_{idx}"):
                             df_projects.at[idx, 'progress'] = new_progress
                             df_projects.at[idx, 'status'] = "🟢 Completed" if new_progress == 100 else new_status
+                            df_projects.at[idx, 'project_type'] = new_type  # Save new type back
                             df_projects.at[idx, 'weekly_focus'] = new_focus_selection
                             df_projects.at[idx, 'notes'] = new_notes
                             df_projects.at[idx, 'link'] = new_link
@@ -275,6 +280,7 @@ if IS_ADMIN:
                     "id": next_id,
                     "title": new_title,
                     "department": new_dept,
+                    "project_type": new_type,
                     "partner": new_partner,
                     "progress": 0,
                     "status": new_status,
