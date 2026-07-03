@@ -349,22 +349,24 @@ with tab3:
                     target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
                     st.markdown(f"**Target Deadline:** {target_date}")
                     
-                    # 🖼️ 3. Project Image Preview with Google Drive Thumbnail Bypass
+                    # 🖼️ 3. Project Image Preview (Resized & Controlled)
                     if 'image_url' in row and pd.notna(row['image_url']) and str(row['image_url']).strip() != "":
                         raw_url = str(row['image_url']).strip()
                         
-                        # Check if it's a standard Google Drive share link
                         if "drive.google.com/file/d/" in raw_url:
                             try:
                                 file_id = raw_url.split("/file/d/")[1].split("/")[0]
-                                # Bypasses virus check by pulling Google's native image preview thumbnail
                                 display_url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
                             except Exception:
                                 display_url = raw_url
                         else:
                             display_url = raw_url
 
-                        st.image(display_url, caption=f"Preview: {row['title']}", use_container_width=True)
+                        # ADJUST SIZE HERE: [2, 3] means the image takes up 40% width. 
+                        # Change to [1, 3] for 25% width, or [1, 1] for 50% width.
+                        img_col, spacer_col = st.columns([2, 3])
+                        with img_col:
+                            st.image(display_url, caption=f"Preview: {row['title']}", use_container_width=True)
                     else:
                         st.caption("📷 No preview image attached for this deliverable.")
                     
@@ -376,7 +378,6 @@ with tab3:
                         st.link_button("📂 Access Deliverable", row['link'], use_container_width=True)
                     else:
                         st.caption("No public link attached.")
-
 
 # --- TAB 4: ADMIN CREATION TAB ---
 if IS_ADMIN and tab4 is not None:
