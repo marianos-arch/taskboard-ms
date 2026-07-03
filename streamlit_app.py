@@ -308,7 +308,7 @@ with tab2:
         else:
             for idx, row in filtered_active.iterrows():
                 type_label = f" — {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
-                with st.expander(f"{row['status']} - {row['title']} — [{row['department']}{type_label}]", expanded=False):
+                with st.expander(f"{row['status']} - {row['title']} — [{row['department']}{type_label}]", expanded=True):
                     c1, c2 = st.columns([2, 1])
                     
                     with c1:
@@ -361,7 +361,7 @@ with tab2:
 
 # --- TAB 3: COMPLETED ARCHIVE (WITH FILTER ENGINE) ---
 with tab3:
-    st.header("📦 Corporate Portfolio Archive")
+    st.header("Project Archive")
     
     if completed_df.empty:
         st.info("Archive is empty. Completed projects will automatically shift here.")
@@ -405,7 +405,7 @@ with tab3:
                         st.markdown(tags_html, unsafe_allow_html=True)
                         
                         target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
-                        st.markdown(f"**Completed Date / Deadline Context:** {target_date}")
+                        st.markdown(f"**Completed Date:** {target_date}")
                         
                         if 'image_url' in row and pd.notna(row['image_url']) and str(row['image_url']).strip() != "":
                             raw_url = str(row['image_url']).strip()
@@ -422,15 +422,15 @@ with tab3:
                             with img_col:
                                 st.image(display_url, caption=f"Preview: {row['title']}", use_container_width=True)
                         else:
-                            st.caption("📷 No preview image attached for this deliverable.")
+                            st.caption("📷 No preview image attached for this project.")
                         
                         st.markdown(f"*{row['description']}*")
                         
                     with col_arch2:
                         if pd.notna(row['link']) and str(row['link']).strip() != "":
-                            st.link_button("📂 Access Deliverable", row['link'], use_container_width=True)
+                            st.link_button("📂 Access Project", row['link'], use_container_width=True)
                         else:
-                            st.caption("No public link attached.")
+                            st.caption("No link attached.")
 
 
 # --- TAB 4: ADMIN CREATION TAB ---
