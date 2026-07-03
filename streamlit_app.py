@@ -105,11 +105,11 @@ active_df = df_projects[df_projects["progress"] < 100] if not df_projects.empty 
 completed_df = df_projects[df_projects["progress"] == 100] if not df_projects.empty else pd.DataFrame()
 
 # --- MAIN INTERFACE ---
-st.title("🎈 My Work & Project Dashboard")
-st.write("Welcome! This dashboard tracks my active corporate projects, cross-departmental collaborations, and historical deliverables.")
+st.title("My Task Dashboard")
+st.write("Hello! This is my dashboard that tracks my active projects, collaborations, ideas, and general tasks given to me."
 
 # --- METRICS SECTION ---
-st.markdown("### 📊 Executive Summary")
+st.markdown("### Quick Summary")
 col1, col2, col3 = st.columns(3)
 
 if not df_projects.empty:
@@ -179,7 +179,7 @@ with tab2:
         st.info("No active projects found.")
     else:
         for idx, row in active_df.iterrows():
-            with st.expander(f"{row['status']} {row['title']} — [{row['department']}]", expanded=True):
+            with st.expander(f"{row['status']} - {row['title']} — [{row['department']}]", expanded=True):
                 c1, c2 = st.columns([2, 1])
                 
                 with c1:
