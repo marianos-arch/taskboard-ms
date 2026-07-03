@@ -157,26 +157,27 @@ with tab1:
     col_focus, col_block = st.columns(2)
     
     with col_focus:
-        st.subheader("⭐ This Week's Focus")
-        if not active_df.empty:
-            focus_df = active_df[active_df["weekly_focus"] == "TRUE"]
-            if not focus_df.empty:
-                for _, row in focus_df.iterrows():
-                    with st.container(border=True):
-                        proj_type_tag = f" | {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
-                        st.markdown(f"**{row['title']}** ({row['department']}{proj_type_tag})")
-                        target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
-                        
-                        # 📊 Added the small progress bar here!
-                        progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
-                        # Clamp between 0 and 100 just to prevent edge-case errors
-                        progress_val = max(0, min(100, progress_val)) 
-                        st.progress(progress_val / 100)
-                        
-                        st.caption(f"Progress: {progress_val}% | Target: {target_date}")
-            else:
-                st.info("Routine maintenance and backlog tasks.")
+    st.subheader("⭐ This Week's Focus")
+    if not active_df.empty:
+        focus_df = active_df[active_df["weekly_focus"] == "TRUE"]
+        if not focus_df.empty:
+            for _, row in focus_df.iterrows():
+                with st.container(border=True):
+                    proj_type_tag = f" | {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
+                    st.markdown(f"**{row['title']}** ({row['department']}{proj_type_tag})")
+                    
+                    target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
+                    progress_val = max(0, min(100, int(row['progress']) if pd.notna(row['progress']) else 0))
+                    
+                    # Generate the custom slider text
+                    dash_count = progress_val // 10
+                    space_count = 10 - dash_count
+                    text_bar = f"<{'—' * dash_count}•{' ' * space_count}>" # Using non-breaking space ' ' preserves alignment
+                    
+                    # Clean single line output
+                    st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
         else:
+            st.info("Routine maintenance and backlog tasks.")
             st.info("No active projects set.")
 
     with col_block:
