@@ -345,20 +345,6 @@ with tab3:
                     # 1. Title
                     st.markdown(f"### ✅ {row['title']}")
                     
-# --- TAB 3: COMPLETED ARCHIVE ---
-with tab3:
-    st.header("📦 Corporate Portfolio Archive")
-    
-    if completed_df.empty:
-        st.info("Archive is empty. Completed projects will automatically shift here.")
-    else:
-        for idx, row in completed_df.iterrows():
-            with st.container(border=True):
-                col_arch1, col_arch2 = st.columns([3, 1])
-                with col_arch1:
-                    # 1. Title
-                    st.markdown(f"### ✅ {row['title']}")
-                    
                     # 2. Target Deadline
                     target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
                     st.markdown(f"**Target Deadline:** {target_date}")
@@ -390,7 +376,6 @@ with tab3:
                         st.link_button("📂 Access Deliverable", row['link'], use_container_width=True)
                     else:
                         st.caption("No public link attached.")
-                    
 
 # --- TAB 4: ADMIN CREATION TAB ---
 if IS_ADMIN and tab4 is not None:
