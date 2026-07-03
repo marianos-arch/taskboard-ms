@@ -178,6 +178,8 @@ with tab1:
                         dash_count = progress_val // 10
                         space_count = 10 - dash_count
                         # Note: Utilizing a non-breaking space character configuration maintains strict alignment layout inside web wrappers
+                        filled_blocks = progress_val // 10
+                        empty_blocks = 10 - filled_blocks
                         text_bar = f"[{'•' * filled_blocks}{'◦' * empty_blocks}]"
                         
                         # Single-line, elegant minimalist layout output
