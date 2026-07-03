@@ -127,6 +127,16 @@ def get_pill_html(text, segment_type="dept"):
         "🟠 In-Development (Idea Board)": {"bg": "#ffedd5", "text": "#9a3412"},
         "🔴 Pending Further Instructions": {"bg": "#fef2f2", "text": "#b91c1c"},
         "🟢 Completed": {"bg": "#dcfce7", "text": "#166534"}
+
+        # Product / Project Types (UPDATED)
+        "Tool": {"bg": "#e0f2fe", "text": "#0369a1"},          # Light Blue
+        "Operations": {"bg": "#f3f4f6", "text": "#374151"},    # Light Grey
+        "Forms": {"bg": "#ffedd5", "text": "#c2410c"},         # Pastel Orange
+        "Marketing": {"bg": "#fee2e2", "text": "#991b1b"},     # Red
+        "Education": {"bg": "#dcfce7", "text": "#15803d"},     # Light Green
+        "Idea": {"bg": "#f3e8ff", "text": "#6b21a8"},          # Light Purple
+        "Research": {"bg": "#ecfeff", "text": "#0e7490"}       # Cyan
+        
     }
     
     # Fallback default configuration for Types or missing options
@@ -352,8 +362,8 @@ with tab3:
                     st.markdown(tags_html, unsafe_allow_html=True)
                     
                     # 2. Target Deadline
-                    target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
-                    st.markdown(f"**Target Deadline:** {target_date}")
+                    # target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
+                    # st.markdown(f"**Target Deadline:** {target_date}")
                     
                     # 🖼️ 3. Project Image Preview (Resized & Controlled)
                     if 'image_url' in row and pd.notna(row['image_url']) and str(row['image_url']).strip() != "":
