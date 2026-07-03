@@ -178,7 +178,7 @@ with tab1:
                         dash_count = progress_val // 10
                         space_count = 10 - dash_count
                         # Note: Utilizing a non-breaking space character configuration maintains strict alignment layout inside web wrappers
-                        text_bar = f"<{'—' * dash_count}•{' ' * space_count}>"
+                        text_bar = f"[{'•' * filled_blocks}{'◦' * empty_blocks}]"
                         
                         # Single-line, elegant minimalist layout output
                         st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
