@@ -175,8 +175,6 @@ with tab1:
                         progress_val = max(0, min(100, progress_val)) 
                         
                         # Generate the custom horizontal slider line (10 steps total)
-                        dash_count = progress_val // 10
-                        space_count = 10 - dash_count
                         # Note: Utilizing a non-breaking space character configuration maintains strict alignment layout inside web wrappers
                         filled_blocks = progress_val // 10
                         empty_blocks = 10 - filled_blocks
@@ -202,9 +200,9 @@ with tab1:
                         # Adding the matching custom minimal slider to pending items too for layout parity
                         progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
                         progress_val = max(0, min(100, progress_val))
-                        dash_count = progress_val // 10
-                        space_count = 10 - dash_count
-                        text_bar = f"<{'—' * dash_count}•{' ' * space_count}>"
+                        filled_blocks = progress_val // 10
+                        empty_blocks = 10 - filled_blocks
+                        text_bar = f"[{'•' * filled_blocks}{'-' * empty_blocks}]"
                         
                         st.caption(f"Stuck at: {progress_val}% {text_bar}")
             else:
