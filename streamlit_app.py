@@ -178,7 +178,7 @@ with tab1:
                         # Note: Utilizing a non-breaking space character configuration maintains strict alignment layout inside web wrappers
                         filled_blocks = progress_val // 10
                         empty_blocks = 10 - filled_blocks
-                        text_bar = f"[{'•' * filled_blocks}{'-' * empty_blocks}]"
+                        text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
                         
                         # Single-line, elegant minimalist layout output
                         st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
