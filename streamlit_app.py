@@ -202,7 +202,7 @@ with tab1:
                         progress_val = max(0, min(100, progress_val))
                         filled_blocks = progress_val // 10
                         empty_blocks = 10 - filled_blocks
-                        text_bar = f"[{'•' * filled_blocks}{'-' * empty_blocks}]"
+                        text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
                         
                         st.caption(f"Stuck at: {progress_val}% {text_bar}")
             else:
