@@ -157,31 +157,37 @@ with tab1:
     col_focus, col_block = st.columns(2)
     
     with col_focus:
-    st.subheader("⭐ This Week's Focus")
-    if not active_df.empty:
-        focus_df = active_df[active_df["weekly_focus"] == "TRUE"]
-        if not focus_df.empty:
-            for _, row in focus_df.iterrows():
-                with st.container(border=True):
-                    proj_type_tag = f" | {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
-                    st.markdown(f"**{row['title']}** ({row['department']}{proj_type_tag})")
-                    
-                    target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
-                    progress_val = max(0, min(100, int(row['progress']) if pd.notna(row['progress']) else 0))
-                    
-                    # Generate the custom slider text
-                    dash_count = progress_val // 10
-                    space_count = 10 - dash_count
-                    text_bar = f"<{'—' * dash_count}•{' ' * space_count}>" # Using non-breaking space ' ' preserves alignment
-                    
-                    # Clean single line output
-                    st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
+        st.subheader("⭐ This Week's Focus")
+        if not active_df.empty:
+            focus_df = active_df[active_df["weekly_focus"] == "TRUE"]
+            if not focus_df.empty:
+                for _, row in focus_df.iterrows():
+                    with st.container(border=True):
+                        # Construct type and department context string
+                        proj_type_tag = f" | {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
+                        st.markdown(f"**{row['title']}** ({row['department']}{proj_type_tag})")
+                        
+                        # Handle deadline format safely
+                        target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
+                        
+                        # Process progress value safely
+                        progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
+                        progress_val = max(0, min(100, progress_val)) 
+                        
+                        # Generate the custom horizontal slider line (10 steps total)
+                        dash_count = progress_val // 10
+                        space_count = 10 - dash_count
+                        # Note: Utilizing a non-breaking space character configuration maintains strict alignment layout inside web wrappers
+                        text_bar = f"<{'—' * dash_count}•{' ' * space_count}>"
+                        
+                        # Single-line, elegant minimalist layout output
+                        st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
+            else:
+                st.info("Routine maintenance and backlog tasks.")
         else:
-            st.info("Routine maintenance and backlog tasks.")
             st.info("No active projects set.")
 
     with col_block:
-        # Now lists projects that are flagged with your new Pending Instructions status
         st.subheader("⚠️ Pending Instructions & Decisions")
         if not active_df.empty:
             blocked_df = active_df[active_df["status"] == "🔴 Pending Further Instructions"]
@@ -191,15 +197,19 @@ with tab1:
                         st.markdown(f"🔴 **{row['title']}**")
                         st.markdown(f"**Current Impediment:** {row['notes']}")
                         
-                        # Optional: Added a progress bar for blocked items too, so you know how close they are to the finish line
+                        # Adding the matching custom minimal slider to pending items too for layout parity
                         progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
                         progress_val = max(0, min(100, progress_val))
-                        st.progress(progress_val / 100)
-                        st.caption(f"Stuck at: {progress_val}%")
+                        dash_count = progress_val // 10
+                        space_count = 10 - dash_count
+                        text_bar = f"<{'—' * dash_count}•{' ' * space_count}>"
+                        
+                        st.caption(f"Stuck at: {progress_val}% {text_bar}")
             else:
                 st.success("No items requiring instructions at this time.")
         else:
             st.success("Clear queue.")
+
 
 # --- TAB 2: ACTIVE PROJECTS ---
 with tab2:
