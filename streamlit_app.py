@@ -108,6 +108,17 @@ completed_df = df_projects[df_projects["progress"] == 100] if not df_projects.em
 DEPT_OPTIONS = ["At-Promise", "ECM", "Admin", "Other"]
 TYPE_OPTIONS = ["Tool", "Operations", "Forms", "Marketing", "Education", "Research", "Idea"]
 
+# ✏️ NEW STATUS OPTIONS (Used globally throughout the application)
+STATUS_OPTIONS = [
+    "🔵 In-Progress", 
+    "🟡 Delayed", 
+    "🟠 In-Development (Idea Board)", 
+    "🔴 Pending Further Instructions", 
+    "🟢 Completed"
+]
+# We remove 'Completed' from the active list since complete items belong in the archive tab
+ACTIVE_STATUS_OPTIONS = [s for s in STATUS_OPTIONS if s != "🟢 Completed"]
+
 # --- MAIN INTERFACE ---
 st.title("My Task Dashboard")
 st.write("Hello! This is my dashboard that tracks my active projects, collaborations, ideas, and general tasks given to me.")
@@ -118,7 +129,7 @@ col1, col2, col3 = st.columns(3)
 
 if not df_projects.empty:
     total_active = len(active_df)
-    total_blocked = len(df_projects[df_projects["status"] == "🔴 Blocked"])
+    total_blocked = len(df_projects[df_projects["status"] == "🔴 Pending Further Instructions"])
     total_completed = len(completed_df)
 else:
     total_active, total_blocked, total_completed = 0, 0, 0
@@ -148,12 +159,12 @@ with tab1:
     with col_focus:
         st.subheader("⭐ This Week's Focus")
         if not active_df.empty:
-            # ADJUSTMENT: Filter by matching the uppercase text string "TRUE"
             focus_df = active_df[active_df["weekly_focus"] == "TRUE"]
             if not focus_df.empty:
                 for _, row in focus_df.iterrows():
                     with st.container(border=True):
-                        st.markdown(f"**{row['title']}** ({row['department']})")
+                        proj_type_tag = f" | {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
+                        st.markdown(f"**{row['title']}** ({row['department']}{proj_type_tag})")
                         target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
                         st.caption(f"Progress: {row['progress']}% | Target: {target_date}")
             else:
@@ -162,16 +173,17 @@ with tab1:
             st.info("No active projects set.")
 
     with col_block:
-        st.subheader("⚠️ Blockers & Ideas Needed")
+        # ADJUSTMENT: Now lists projects that are flagged with your new Pending Instructions status
+        st.subheader("⚠️ Pending Instructions & Decisions")
         if not active_df.empty:
-            blocked_df = active_df[active_df["status"] == "🔴 Blocked"]
+            blocked_df = active_df[active_df["status"] == "🔴 Pending Further Instructions"]
             if not blocked_df.empty:
                 for _, row in blocked_df.iterrows():
                     with st.container(border=True):
                         st.markdown(f"🔴 **{row['title']}**")
                         st.markdown(f"**Current Impediment:** {row['notes']}")
             else:
-                st.success("No current blockages reported.")
+                st.success("No items requiring instructions at this time.")
         else:
             st.success("Clear queue.")
 
@@ -183,7 +195,8 @@ with tab2:
         st.info("No active projects found.")
     else:
         for idx, row in active_df.iterrows():
-            with st.expander(f"{row['status']} - {row['title']} — [{row['department']}]", expanded=True):
+            type_label = f" — {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
+            with st.expander(f"{row['status']} {row['title']} — [{row['department']}{type_label}]", expanded=True):
                 c1, c2 = st.columns([2, 1])
                 
                 with c1:
@@ -193,17 +206,19 @@ with tab2:
                         st.markdown(f"**Latest Updates / Notes:** {row['notes']}")
                 
                 with c2:
-                    target_date = row['deadline'].strftime('%B %d, %Y') if pd.notna(row['deadline']) else "N/A"
+                    target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
                     st.markdown(f"📆 **Deadline:** {target_date}")
                     
                     if IS_ADMIN:
                         new_progress = st.slider("Update Progress", 0, 100, int(row['progress']), key=f"p_{idx}")
                         
-                        status_list = ["🟢 On Track", "🟡 Delayed", "🔴 Blocked"]
-                        curr_status = row['status'] if row['status'] in status_list else "🟢 On Track"
-                        new_status = st.selectbox("Update Status", status_list, index=status_list.index(curr_status), key=f"s_{idx}")
+                        # Use the new active statuses configuration list here
+                        curr_status = row['status'] if row['status'] in ACTIVE_STATUS_OPTIONS else ACTIVE_STATUS_OPTIONS[0]
+                        new_status = st.selectbox("Update Status", STATUS_OPTIONS, index=STATUS_OPTIONS.index(curr_status), key=f"s_{idx}")
                         
-                        # ADJUSTMENT: Convert the row text to select box option toggle
+                        curr_type = row['project_type'] if ('project_type' in row and row['project_type'] in TYPE_OPTIONS) else TYPE_OPTIONS[0]
+                        new_type = st.selectbox("Update Project Type", TYPE_OPTIONS, index=TYPE_OPTIONS.index(curr_type), key=f"t_{idx}")
+
                         is_focused_now = "TRUE" if row['weekly_focus'] == "TRUE" else "FALSE"
                         new_focus_selection = st.selectbox("Set Weekly Focus", options=["FALSE", "TRUE"], index=["FALSE", "TRUE"].index(is_focused_now), key=f"f_{idx}")
                         
@@ -211,14 +226,18 @@ with tab2:
                         new_link = st.text_input("Attach Final Deliverable URL", value=row['link'], key=f"l_{idx}")
                         
                         if st.button("Save Changes", key=f"btn_{idx}"):
-                            df_projects.at[idx, 'progress'] = new_progress
+                            # Quality of life sync: If status is manually set to Completed, progress jumps to 100%
+                            if new_status == "🟢 Completed":
+                                df_projects.at[idx, 'progress'] = 100
+                            else:
+                                df_projects.at[idx, 'progress'] = new_progress
+                                
                             df_projects.at[idx, 'status'] = "🟢 Completed" if new_progress == 100 else new_status
-                            df_projects.at[idx, 'project_type'] = new_type  # Save new type back
+                            df_projects.at[idx, 'project_type'] = new_type
                             df_projects.at[idx, 'weekly_focus'] = new_focus_selection
                             df_projects.at[idx, 'notes'] = new_notes
                             df_projects.at[idx, 'link'] = new_link
                             
-                            # ADJUSTMENT: Write data back using our dynamic helper function wrapper
                             if save_dataframe_to_gsheet(df_projects):
                                 st.cache_data.clear()
                                 st.success("Database rows synchronized successfully!")
@@ -243,7 +262,8 @@ with tab3:
                 with col_arch1:
                     st.markdown(f"### ✅ {row['title']}")
                     target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
-                    st.markdown(f"**Department:** {row['department']} | **Target Deadline:** {target_date}")
+                    type_str = f" | **Type:** {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
+                    st.markdown(f"**Department:** {row['department']}{type_str} | **Target Deadline:** {target_date}")
                     st.markdown(f"*{row['description']}*")
                 with col_arch2:
                     if pd.notna(row['link']) and str(row['link']).strip() != "":
@@ -258,17 +278,16 @@ if IS_ADMIN:
         with st.form("creation_form_unique", clear_on_submit=True):
             new_title = st.text_input("Project / Assignment Title")
             
-            dept_options = ["Marketing", "Engineering", "Operations", "Product", "Sales", "Accounting", "External"]
-            new_dept = st.selectbox("Department / Segment Tag", options=dept_options)
+            new_dept = st.selectbox("Department / Segment Tag", options=DEPT_OPTIONS)
+            new_type = st.selectbox("Project Type", options=TYPE_OPTIONS)
             
             new_partner = st.text_input("Partners (Separated by commas)")
             new_desc = st.text_area("Detailed Project Description")
             new_deadline = st.date_input("Target Completion Deadline", datetime.date.today())
             
-            status_options = ["🟢 On Track", "🟡 Delayed", "🔴 Blocked", "🟢 Completed"]
-            new_status = st.selectbox("Initial Status", options=status_options)
+            # Form Updates: Uses the global status options list
+            new_status = st.selectbox("Initial Status", options=STATUS_OPTIONS)
             
-            # ADJUSTMENT: Create new focus fields using the plain text options structure
             new_focus_choice = st.selectbox("Set as Weekly Focus?", options=["FALSE", "TRUE"])
             
             submit_new = st.form_submit_button("Append to Google Sheet Database")
@@ -276,13 +295,16 @@ if IS_ADMIN:
             if submit_new and new_title:
                 next_id = int(df_projects['id'].max() + 1) if not df_projects.empty else 1
                 
+                # Logic block: if created as "Completed" right out of the gate, set progress to 100%
+                init_progress = 100 if new_status == "🟢 Completed" else 0
+                
                 new_row = {
                     "id": next_id,
                     "title": new_title,
                     "department": new_dept,
                     "project_type": new_type,
                     "partner": new_partner,
-                    "progress": 0,
+                    "progress": init_progress,
                     "status": new_status,
                     "description": new_desc,
                     "notes": "",
@@ -293,7 +315,6 @@ if IS_ADMIN:
                 
                 updated_df = pd.concat([df_projects, pd.DataFrame([new_row])], ignore_index=True)
                 
-                # ADJUSTMENT: Save row data using our dynamic helper function wrapper
                 if save_dataframe_to_gsheet(updated_df):
                     st.cache_data.clear()
                     st.success(f"Successfully appended '{new_title}' to the cloud database!")
