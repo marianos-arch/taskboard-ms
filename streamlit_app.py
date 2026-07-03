@@ -106,7 +106,7 @@ completed_df = df_projects[df_projects["progress"] == 100] if not df_projects.em
 
 # --- MAIN INTERFACE ---
 st.title("My Task Dashboard")
-st.write("Hello! This is my dashboard that tracks my active projects, collaborations, ideas, and general tasks given to me."
+st.write("Hello! This is my dashboard that tracks my active projects, collaborations, ideas, and general tasks given to me.")
 
 # --- METRICS SECTION ---
 st.markdown("### Quick Summary")
