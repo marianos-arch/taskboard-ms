@@ -222,7 +222,7 @@ with tab2:
     else:
         for idx, row in active_df.iterrows():
             type_label = f" — {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
-            with st.expander(f"{row['status']} {row['title']} — [{row['department']}{type_label}]", expanded=True):
+            with st.expander(f"{row['status']} - {row['title']} — [{row['department']}{type_label}]", expanded=True):
                 c1, c2 = st.columns([2, 1])
                 
                 with c1:
