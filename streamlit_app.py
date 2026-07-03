@@ -154,61 +154,63 @@ else:
 # --- TAB 1: AT A GLANCE ---
 with tab1:
     st.header("🎯 Current Priorities & Needs")
-    col_focus, col_block = st.columns(2)
-    
-    with col_focus:
-        st.subheader("⭐ This Week's Focus")
-        if not active_df.empty:
-            focus_df = active_df[active_df["weekly_focus"] == "TRUE"]
-            if not focus_df.empty:
-                for _, row in focus_df.iterrows():
-                    with st.container(border=True):
-                        # Construct type and department context string
-                        proj_type_tag = f" | {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
-                        st.markdown(f"**{row['title']}** ({row['department']}{proj_type_tag})")
-                        
-                        # Handle deadline format safely
-                        target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
-                        
-                        # Process progress value safely
-                        progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
-                        progress_val = max(0, min(100, progress_val)) 
-                        
-                        # Generate the custom horizontal slider line (10 steps total)
-                        # Note: Utilizing a non-breaking space character configuration maintains strict alignment layout inside web wrappers
-                        filled_blocks = progress_val // 10
-                        empty_blocks = 10 - filled_blocks
-                        text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
-                        
-                        # Single-line, elegant minimalist layout output
-                        st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
-            else:
-                st.info("Routine maintenance and backlog tasks.")
-        else:
-            st.info("No active projects set.")
 
-    with col_block:
-        st.subheader("⚠️ Pending Instructions & Decisions")
-        if not active_df.empty:
-            blocked_df = active_df[active_df["status"] == "🔴 Pending Further Instructions"]
-            if not blocked_df.empty:
-                for _, row in blocked_df.iterrows():
-                    with st.container(border=True):
-                        st.markdown(f"🔴 **{row['title']}**")
-                        st.markdown(f"**Current Impediment:** {row['notes']}")
-                        
-                        # Adding the matching custom minimal slider to pending items too for layout parity
-                        progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
-                        progress_val = max(0, min(100, progress_val))
-                        filled_blocks = progress_val // 10
-                        empty_blocks = 10 - filled_blocks
-                        text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
-                        
-                        st.caption(f"Stuck at: {progress_val}% {text_bar}")
-            else:
-                st.success("No items requiring instructions at this time.")
+    st.subheader("⭐ This Week's Focus")
+    if not active_df.empty:
+        focus_df = active_df[active_df["weekly_focus"] == "TRUE"]
+        if not focus_df.empty:
+            for _, row in focus_df.iterrows():
+                with st.container(border=True):
+                    # Construct type and department context string
+                    proj_type_tag = f" | {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
+                    st.markdown(f"**{row['title']}** ({row['department']}{proj_type_tag})")
+                    
+                    # Handle deadline format safely
+                    target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
+                    
+                    # Process progress value safely
+                    progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
+                    progress_val = max(0, min(100, progress_val)) 
+                    
+                    # Generate the custom horizontal slider line (10 steps total)
+                    # Note: Utilizing a non-breaking space character configuration maintains strict alignment layout inside web wrappers
+                    filled_blocks = progress_val // 10
+                    empty_blocks = 10 - filled_blocks
+                    text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
+                    
+                    # Single-line, elegant minimalist layout output
+                    st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
         else:
-            st.success("Clear queue.")
+            st.info("Routine maintenance and backlog tasks.")
+    else:
+        st.info("No active projects set.")
+
+    # Visual separator between the stacked sections
+    st.markdown(" ")
+    st.markdown("---")
+    st.markdown(" ")
+
+    st.subheader("⚠️ Pending Instructions & Decisions")
+    if not active_df.empty:
+        blocked_df = active_df[active_df["status"] == "🔴 Pending Further Instructions"]
+        if not blocked_df.empty:
+            for _, row in blocked_df.iterrows():
+                with st.container(border=True):
+                    st.markdown(f"🔴 **{row['title']}**")
+                    st.markdown(f"**Current Impediment:** {row['notes']}")
+                    
+                    # Adding the matching custom minimal slider to pending items too for layout parity
+                    progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
+                    progress_val = max(0, min(100, progress_val))
+                    filled_blocks = progress_val // 10
+                    empty_blocks = 10 - filled_blocks
+                    text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
+                    
+                    st.caption(f"Stuck at: {progress_val}% {text_bar}")
+        else:
+            st.success("No items requiring instructions at this time.")
+    else:
+        st.success("Clear queue.")
 
 
 # --- TAB 2: ACTIVE PROJECTS ---
