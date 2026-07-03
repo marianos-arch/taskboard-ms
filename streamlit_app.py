@@ -126,7 +126,7 @@ def get_pill_html(text, segment_type="dept"):
         "🟡 Delayed": {"bg": "#fee2e2", "text": "#991b1b"},
         "🟠 In-Development (Idea Board)": {"bg": "#ffedd5", "text": "#9a3412"},
         "🔴 Pending Further Instructions": {"bg": "#fef2f2", "text": "#b91c1c"},
-        "🟢 Completed": {"bg": "#dcfce7", "text": "#166534"}
+        "🟢 Completed": {"bg": "#dcfce7", "text": "#166534"},
 
         # Product / Project Types (UPDATED)
         "Tool": {"bg": "#e0f2fe", "text": "#0369a1"},          # Light Blue
