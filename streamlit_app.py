@@ -7,52 +7,21 @@ import gspread
 # --- APP CONFIGURATION ---
 st.set_page_config(page_title="Work & Project Dashboard", page_icon="📊", layout="wide")
 
-# --- UI HELPER: COLOR-CODED PILLS ---
-def create_pill_html(label, bg_color, text_color="#1f2937"):
-    """Generates HTML for a stylized, color-coded pill badge."""
-    return f"""
-    <span style="
-        background-color: {bg_color}; 
-        color: {text_color}; 
-        padding: 4px 10px; 
-        border-radius: 12px; 
-        font-size: 0.8em; 
-        font-weight: 600; 
-        display: inline-block; 
-        margin-right: 4px; 
-        margin-bottom: 4px;
-        border: 1px solid rgba(0,0,0,0.05);
-    ">{label}</span>
-    """
-
-# Color palettes for your specific categories
-DEPT_COLORS = {
-    "At-Promise": "#e0f2fe", # Light Blue
-    "ECM": "#dcfce7",        # Light Green
-    "Admin": "#fef08a",      # Light Yellow
-    "Other": "#f3f4f6"       # Light Gray
-}
-
-TYPE_COLORS = {
-    "Tool": "#c7d2fe",       # Indigo
-    "Operations": "#fed7aa", # Orange
-    "Forms": "#fbcfe8",      # Pink
-    "Marketing": "#bfdbfe",  # Blue
-    "Education": "#a7f3d0",  # Emerald
-    "Research": "#e9d5ff",   # Purple
-    "Idea": "#fde047"        # Yellow
-}
-
 # --- DATABASE CONNECTION (Google Sheets via Dynamic Secrets & gspread) ---
 @st.cache_data(ttl=0)  # Setting to 0 for instant testing updates!
 def load_data():
     try:
+        # 1. Pull the raw private key string directly from Streamlit Secrets
         raw_key = st.secrets["connections"]["gsheets"]["private_key"]
+        
+        # 2. Automatically repair any double-escaped literal "\n" text into actual line breaks
         private_key = raw_key.replace("\\n", "\n")
         
+        # 3. Ensure the key block has perfectly clean single newlines
         while "\n\n" in private_key:
             private_key = private_key.replace("\n\n", "\n")
 
+        # 4. Reconstruct the full Google Account JSON structure using your exact secrets
         info = {
             "type": "service_account",
             "project_id": st.secrets["connections"]["gsheets"]["project_id"],
@@ -67,10 +36,12 @@ def load_data():
             "universe_domain": "googleapis.com"
         }
 
+        # 5. Authenticate via Google OAuth
         scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(info, scopes=scopes)
         client = gspread.authorize(creds)
 
+        # 6. Access the Google Sheet document via its URL
         spreadsheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         sheet = client.open_by_url(spreadsheet_url).sheet1
         
@@ -84,6 +55,7 @@ def load_data():
 # --- FETCH & PREPARE DATA ---
 df_projects, sheet_api_client = load_data()
 
+# Clean and normalize columns
 if not df_projects.empty:
     if 'deadline' in df_projects.columns:
         df_projects['deadline'] = pd.to_datetime(df_projects['deadline'], errors='coerce')
@@ -128,7 +100,7 @@ if admin_password:
 active_df = df_projects[df_projects["progress"] < 100] if not df_projects.empty else pd.DataFrame()
 completed_df = df_projects[df_projects["progress"] == 100] if not df_projects.empty else pd.DataFrame()
 
-# UPDATE THESE LISTS
+# --- OPTIONS LISTS ---
 DEPT_OPTIONS = ["At-Promise", "ECM", "Admin", "Other"]
 TYPE_OPTIONS = ["Tool", "Operations", "Forms", "Marketing", "Education", "Research", "Idea"]
 
@@ -140,6 +112,26 @@ STATUS_OPTIONS = [
     "🟢 Completed"
 ]
 ACTIVE_STATUS_OPTIONS = [s for s in STATUS_OPTIONS if s != "🟢 Completed"]
+
+# --- HELPER FUNCTION: COLOR-CODED PILLS ---
+def get_pill_html(text, segment_type="dept"):
+    # Base configuration mapping for dynamic colors
+    colors = {
+        "At-Promise": {"bg": "#e0f2fe", "text": "#0369a1"},    # Light Blue
+        "ECM": {"bg": "#f3e8ff", "text": "#6b21a8"},           # Light Purple
+        "Admin": {"bg": "#f1f5f9", "text": "#475569"},         # Grey
+        "Other": {"bg": "#fef3c7", "text": "#92400e"},         # Amber
+        
+        "🔵 In-Progress": {"bg": "#dbeafe", "text": "#1e40af"},
+        "🟡 Delayed": {"bg": "#fee2e2", "text": "#991b1b"},
+        "🟠 In-Development (Idea Board)": {"bg": "#ffedd5", "text": "#9a3412"},
+        "🔴 Pending Further Instructions": {"bg": "#fef2f2", "text": "#b91c1c"},
+        "🟢 Completed": {"bg": "#dcfce7", "text": "#166534"}
+    }
+    
+    # Fallback default configuration for Types or missing options
+    cfg = colors.get(text, {"bg": "#f0fdf4", "text": "#15803d"} if segment_type == "type" else {"bg": "#e2e8f0", "text": "#1e293b"})
+    return f'<span style="background-color: {cfg["bg"]}; color: {cfg["text"]}; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 4px; display: inline-block;">{text}</span>'
 
 # --- MAIN INTERFACE ---
 st.title("My Task Dashboard")
@@ -168,11 +160,14 @@ col3.metric(label="Shipped Portfolios", value=total_completed)
 st.markdown("---")
 
 # --- TAB DEFINITIONS ---
+tabs_list = ["🎯 At a Glance", "📋 Kanban Board", "🚀 Active Projects", "✅ Completed Archive"]
 if IS_ADMIN:
-    # ADDED: New Kanban Tab
-    tab1, tab_kanban, tab2, tab3, tab4 = st.tabs(["🎯 At a Glance", "📋 Kanban Board", "🚀 Active Projects", "✅ Completed Archive", "➕ Add New Project"])
-else:
-    tab1, tab_kanban, tab2, tab3 = st.tabs(["🎯 At a Glance", "📋 Kanban Board", "🚀 Active Projects", "✅ Completed Archive"])
+    tabs_list.append("➕ Add New Project")
+
+tabs = st.tabs(tabs_list)
+tab1, tab_kanban = tabs[0], tabs[1]
+tab2, tab3 = tabs[2], tabs[3]
+tab4 = tabs[4] if IS_ADMIN else None
 
 # --- TAB 1: AT A GLANCE ---
 with tab1:
@@ -184,16 +179,13 @@ with tab1:
         if not focus_df.empty:
             for _, row in focus_df.iterrows():
                 with st.container(border=True):
+                    # Styled Title Line with HTML Pills
+                    dept_pill = get_pill_html(row['department'], "dept")
+                    type_pill = get_pill_html(row.get('project_type', 'Idea'), "type")
+                    status_pill = get_pill_html(row['status'], "status")
                     
-                    # 🎨 IMPLEMENTATION: Apply color-coded pill tags
-                    dept_color = DEPT_COLORS.get(row['department'], "#f3f4f6")
-                    tags_html = create_pill_html(row['department'], dept_color)
-                    
-                    if 'project_type' in row and row['project_type']:
-                        type_color = TYPE_COLORS.get(row['project_type'], "#f3f4f6")
-                        tags_html += create_pill_html(row['project_type'], type_color)
-
-                    st.markdown(f"**{row['title']}**<br>{tags_html}", unsafe_allow_html=True)
+                    st.markdown(f"<h5>{row['title']}</h5>", unsafe_allow_html=True)
+                    st.markdown(f"{status_pill} {dept_pill} {type_pill}", unsafe_allow_html=True)
                     
                     target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
                     progress_val = max(0, min(100, int(row['progress']) if pd.notna(row['progress']) else 0)) 
@@ -202,6 +194,7 @@ with tab1:
                     empty_blocks = 10 - filled_blocks
                     text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
                     
+                    st.markdown(" ")
                     st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
         else:
             st.info("Routine maintenance and backlog tasks.")
@@ -218,7 +211,11 @@ with tab1:
         if not blocked_df.empty:
             for _, row in blocked_df.iterrows():
                 with st.container(border=True):
-                    st.markdown(f"🔴 **{row['title']}**")
+                    dept_pill = get_pill_html(row['department'], "dept")
+                    type_pill = get_pill_html(row.get('project_type', 'Idea'), "type")
+                    
+                    st.markdown(f"<h5>🔴 {row['title']}</h5>", unsafe_allow_html=True)
+                    st.markdown(f"{dept_pill} {type_pill}", unsafe_allow_html=True)
                     st.markdown(f"**Current Impediment:** {row['notes']}")
                     
                     progress_val = max(0, min(100, int(row['progress']) if pd.notna(row['progress']) else 0))
@@ -232,60 +229,55 @@ with tab1:
     else:
         st.success("Clear queue.")
 
-# --- NEW TAB: KANBAN BOARD ---
+# --- TAB: KANBAN BOARD ---
 with tab_kanban:
-    st.header("📋 Visual Kanban Board")
-    st.write("Drag-and-drop feeling layout for a quick overview of where everything stands.")
+    st.header("📋 Visual Workflow Kanban Board")
+    st.write("Dynamic columns grouped automatically by task status definitions.")
     
-    if active_df.empty:
-        st.info("No active projects to display on the board.")
-    else:
-        # Create a column for every active status
-        kanban_cols = st.columns(len(ACTIVE_STATUS_OPTIONS))
-        
-        for idx, status_col_name in enumerate(ACTIVE_STATUS_OPTIONS):
-            with kanban_cols[idx]:
-                # Print column header
-                st.markdown(f"**{status_col_name}**")
-                
-                # Filter data for this specific column
-                col_df = active_df[active_df['status'] == status_col_name]
-                
-                if col_df.empty:
-                    st.caption("Empty lane.")
+    # Layout 4 responsive columns across the UI space
+    kanban_cols = st.columns(4)
+    
+    # Filter targets
+    kanban_statuses = [
+        ("🔵 In-Progress", kanban_cols[0]),
+        ("🟡 Delayed", kanban_cols[1]),
+        ("🟠 In-Development (Idea Board)", kanban_cols[2]),
+        ("🔴 Pending Further Instructions", kanban_cols[3])
+    ]
+    
+    for status_name, col_obj in kanban_statuses:
+        with col_obj:
+            # Styled Column Header Block using Markdown
+            st.markdown(f"### {status_name.split(' ')[0]} {status_name.split(' ')[1]}")
+            st.markdown("---")
+            
+            if not df_projects.empty:
+                filtered_kb = df_projects[df_projects["status"] == status_name]
+                if filtered_kb.empty:
+                    st.caption("_No items in this status stage_")
                 else:
-                    for _, row in col_df.iterrows():
+                    for _, row in filtered_kb.iterrows():
                         with st.container(border=True):
                             st.markdown(f"**{row['title']}**")
+                            dept_pill = get_pill_html(row['department'], "dept")
+                            st.markdown(dept_pill, unsafe_allow_html=True)
                             
-                            # 🎨 Tags inside the Kanban cards
-                            dept_color = DEPT_COLORS.get(row['department'], "#f3f4f6")
-                            tags_html = create_pill_html(row['department'], dept_color)
-                            
-                            if 'project_type' in row and row['project_type']:
-                                type_color = TYPE_COLORS.get(row['project_type'], "#f3f4f6")
-                                tags_html += create_pill_html(row['project_type'], type_color)
-                                
-                            st.markdown(tags_html, unsafe_allow_html=True)
-                            
-                            target_date = row['deadline'].strftime('%b %d') if pd.notna(row['deadline']) else "N/A"
-                            st.caption(f"📅 {target_date} | {int(row['progress'])}%")
+                            # Tiny progress calculation indicator
+                            p_val = int(row['progress']) if pd.notna(row['progress']) else 0
+                            st.caption(f"Progress: {p_val}%")
+            else:
+                st.caption("_Empty Dataset_")
 
-# --- TAB 2: ACTIVE PROJECTS (Detailed view) ---
+# --- TAB 2: ACTIVE PROJECTS ---
 with tab2:
-    st.header("🚀 Detailed Project Pipelines")
+    st.header("🚀 Ongoing Project Pipelines")
     
     if active_df.empty:
         st.info("No active projects found.")
     else:
         for idx, row in active_df.iterrows():
-            
-            # 🎨 Include HTML pills in expander titles (Streamlit allows light HTML in expanders now!)
-            dept_color = DEPT_COLORS.get(row['department'], "#f3f4f6")
-            type_color = TYPE_COLORS.get(row.get('project_type', ''), "#f3f4f6")
-            tag_str = f"[{row['department']} | {row.get('project_type', '')}]"
-
-            with st.expander(f"{row['status']} - {row['title']} — {tag_str}", expanded=False):
+            type_label = f" — {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
+            with st.expander(f"{row['status']} - {row['title']} — [{row['department']}{type_label}]", expanded=True):
                 c1, c2 = st.columns([2, 1])
                 
                 with c1:
@@ -300,7 +292,6 @@ with tab2:
                     
                     if IS_ADMIN:
                         new_progress = st.slider("Update Progress", 0, 100, int(row['progress']), key=f"p_{idx}")
-                        
                         curr_status = row['status'] if row['status'] in ACTIVE_STATUS_OPTIONS else ACTIVE_STATUS_OPTIONS[0]
                         new_status = st.selectbox("Update Status", STATUS_OPTIONS, index=STATUS_OPTIONS.index(curr_status), key=f"s_{idx}")
                         
@@ -347,19 +338,10 @@ with tab3:
             with st.container(border=True):
                 col_arch1, col_arch2 = st.columns([3, 1])
                 with col_arch1:
-                    
-                    # 🎨 Add pills to archive view as well
-                    dept_color = DEPT_COLORS.get(row['department'], "#f3f4f6")
-                    type_color = TYPE_COLORS.get(row.get('project_type', ''), "#f3f4f6")
-                    tags_html = create_pill_html(row['department'], dept_color)
-                    if 'project_type' in row and row['project_type']:
-                        tags_html += create_pill_html(row['project_type'], type_color)
-                    
                     st.markdown(f"### ✅ {row['title']}")
-                    st.markdown(tags_html, unsafe_allow_html=True)
-                    
                     target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
-                    st.markdown(f"**Target Deadline:** {target_date}")
+                    type_str = f" | **Type:** {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
+                    st.markdown(f"**Department:** {row['department']}{type_str} | **Target Deadline:** {target_date}")
                     st.markdown(f"*{row['description']}*")
                 with col_arch2:
                     if pd.notna(row['link']) and str(row['link']).strip() != "":
@@ -368,19 +350,16 @@ with tab3:
                         st.caption("No public link attached.")
 
 # --- TAB 4: ADMIN CREATION TAB ---
-if IS_ADMIN:
+if IS_ADMIN and tab4 is not None:
     with tab4:
         st.header("➕ Add New Project Entry")
         with st.form("creation_form_unique", clear_on_submit=True):
             new_title = st.text_input("Project / Assignment Title")
-            
             new_dept = st.selectbox("Department / Segment Tag", options=DEPT_OPTIONS)
             new_type = st.selectbox("Project Type", options=TYPE_OPTIONS)
-            
             new_partner = st.text_input("Partners (Separated by commas)")
             new_desc = st.text_area("Detailed Project Description")
             new_deadline = st.date_input("Target Completion Deadline", datetime.date.today())
-            
             new_status = st.selectbox("Initial Status", options=STATUS_OPTIONS)
             new_focus_choice = st.selectbox("Set as Weekly Focus?", options=["FALSE", "TRUE"])
             
@@ -388,7 +367,6 @@ if IS_ADMIN:
             
             if submit_new and new_title:
                 next_id = int(df_projects['id'].max() + 1) if not df_projects.empty else 1
-                
                 init_progress = 100 if new_status == "🟢 Completed" else 0
                 
                 new_row = {
