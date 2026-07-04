@@ -52,10 +52,6 @@ def load_data():
         st.error(f"Failed to connect to Google Sheets: {e}")
         return pd.DataFrame(), None
 
-# --- FETCH & PREPARE DATA ---
-df_projects, sheet_api_client = load_data()
-df_notes, sheet_notes_client = load_notes_data()
-
 # the new sheet named Notes and a writer function to save changes back to it
 def save_notes_to_gsheet(df_notes_to_save, notes_api_client):
     """Saves updated case notes back down to the 'Notes' worksheet grid"""
@@ -82,7 +78,12 @@ def parse_relative_date(date_val):
             return f"📅 [{target_dt.strftime('%b %d')}]"
     except Exception:
         return "📝 [LOG]"
-    
+
+# --- FETCH & PREPARE DATA ---
+df_projects, sheet_api_client = load_data()
+df_notes, sheet_notes_client = load_notes_data()
+
+
 # Clean and normalize columns
 if not df_projects.empty:
     if 'deadline' in df_projects.columns:
