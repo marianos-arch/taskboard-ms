@@ -52,7 +52,42 @@ def load_data():
         st.error(f"Failed to connect to Google Sheets: {e}")
         return pd.DataFrame(), None
 
-# the new sheet named Notes and a writer function to save changes back to it
+@st.cache_data(ttl=0)
+def load_notes_data():
+    """Fetches records from the secondary tab worksheet named 'Notes'"""
+    try:
+        raw_key = st.secrets["connections"]["gsheets"]["private_key"]
+        private_key = raw_key.replace("\\n", "\n")
+        while "\n\n" in private_key:
+            private_key = private_key.replace("\n\n", "\n")
+
+        info = {
+            "type": "service_account",
+            "project_id": st.secrets["connections"]["gsheets"]["project_id"],
+            "private_key_id": st.secrets["connections"]["gsheets"]["private_key_id"],
+            "private_key": private_key,
+            "client_email": st.secrets["connections"]["gsheets"]["client_email"],
+            "client_id": st.secrets["connections"]["gsheets"]["client_id"],
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": st.secrets["connections"]["gsheets"]["client_x509_cert_url"],
+            "universe_domain": "googleapis.com"
+        }
+
+        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(info, scopes=scopes)
+        client = gspread.authorize(creds)
+
+        spreadsheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+        notes_sheet = client.open_by_url(spreadsheet_url).worksheet("Notes")
+        
+        data = notes_sheet.get_all_records()
+        return pd.DataFrame(data), notes_sheet
+    except Exception as e:
+        return pd.DataFrame(), None
+
+
 def save_notes_to_gsheet(df_notes_to_save, notes_api_client):
     """Saves updated case notes back down to the 'Notes' worksheet grid"""
     if notes_api_client is not None:
@@ -64,6 +99,7 @@ def save_notes_to_gsheet(df_notes_to_save, notes_api_client):
             st.error(f"Error saving down history log records: {e}")
             return False
     return False
+
 
 def parse_relative_date(date_val):
     """Parses dynamic text tags [TODAY] or [YESTERDAY] for the activity stream"""
