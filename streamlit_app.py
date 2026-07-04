@@ -467,20 +467,6 @@ with tab2:
                                         st.cache_data.clear()
                                         st.success("History tracking note captured successfully!")
                                         st.rerun()
-                            
-                            # Option B: Advanced Mass spreadsheet row cell modification option
-                            with st.expander("🛠️ Advanced Spreadsheet Grid Note Editor", expanded=False):
-                                if not df_notes.empty and 'id' in row:
-                                    editable_project_notes = df_notes[df_notes["project_id"] == row["id"]]
-                                    if not editable_project_notes.empty:
-                                        edited_notes_df = st.data_editor(editable_project_notes, key=f"grid_edit_{idx}", hide_index=True)
-                                        if st.button("Commit Grid Cell Changes", key=f"save_grid_{idx}"):
-                                            df_notes.update(edited_notes_df)
-                                            if save_notes_to_gsheet(df_notes, sheet_notes_client):
-                                                st.cache_data.clear()
-                                                st.success("Grid overrides processed updates down onto base sheet successfully!")
-                                                st.rerun()
-                            
                                                         
                             if st.button("Save Changes", key=f"btn_{idx}"):
                                 if new_status == "🟢 Completed":
