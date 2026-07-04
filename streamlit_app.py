@@ -54,7 +54,35 @@ def load_data():
 
 # --- FETCH & PREPARE DATA ---
 df_projects, sheet_api_client = load_data()
+df_notes, sheet_notes_client = load_notes_data()
 
+# the new sheet named Notes and a writer function to save changes back to it
+def save_notes_to_gsheet(df_notes_to_save, notes_api_client):
+    """Saves updated case notes back down to the 'Notes' worksheet grid"""
+    if notes_api_client is not None:
+        try:
+            notes_api_client.clear()
+            notes_api_client.update([df_notes_to_save.columns.values.tolist()] + df_notes_to_save.values.tolist())
+            return True
+        except Exception as e:
+            st.error(f"Error saving down history log records: {e}")
+            return False
+    return False
+
+def parse_relative_date(date_val):
+    """Parses dynamic text tags [TODAY] or [YESTERDAY] for the activity stream"""
+    try:
+        target_dt = pd.to_datetime(date_val).date()
+        today_dt = datetime.date.today()
+        if target_dt == today_dt:
+            return "❤️ [TODAY]"
+        elif target_dt == today_dt - datetime.timedelta(days=1):
+            return "⏳ [YESTERDAY]"
+        else:
+            return f"📅 [{target_dt.strftime('%b %d')}]"
+    except Exception:
+        return "📝 [LOG]"
+    
 # Clean and normalize columns
 if not df_projects.empty:
     if 'deadline' in df_projects.columns:
@@ -207,6 +235,25 @@ with tab1:
     st.markdown("---")
     st.markdown(" ")
 
+    # --- NEW: OPTION A (GLOBAL TIMELINE FEED) ---
+    st.subheader("⏱️ Recent Activity Feed")
+    if not df_notes.empty:
+        # Sort values with newest notes at the very top, grab top 5 entries
+        latest_notes = df_notes.sort_values(by="note_id", ascending=False).head(5)
+        for _, n_row in latest_notes.iterrows():
+            time_badge = parse_relative_date(n_row['date'])
+            role_label = f" ({n_row['author_role']})" if 'author_role' in n_row and n_row['author_role'] else ""
+            
+            with st.container(border=True):
+                st.markdown(f"**{n_row['project_name']}** — *{time_badge}*")
+                st.caption(f"**{n_row['author']}{role_label} logged:** {n_row['case_note']}")
+    else:
+        st.info("No timeline case logs recorded in database registry yet.")
+        
+    st.markdown(" ")
+    st.markdown("---")
+    st.markdown(" ") 
+
     st.subheader("⚠️ Pending Instructions & Decisions")
     if not active_df.empty:
         blocked_df = active_df[active_df["status"] == "🔴 Pending Further Instructions"]
@@ -334,7 +381,70 @@ with tab2:
                             
                             new_notes = st.text_area("Edit Update Notes", value=row['notes'], key=f"n_{idx}")
                             new_link = st.text_input("Attach Final Deliverable URL", value=row['link'], key=f"l_{idx}")
+                            st.markdown("#### 📝 Project Case Notes Manager")
+
+                            # A. Display Context History Linked by Unique relational ID
+                            if not df_notes.empty and 'id' in row:
+                                proj_notes = df_notes[df_notes["project_id"] == row["id"]].sort_values(by="note_id", ascending=False)
+                                if not proj_notes.empty:
+                                    st.write("Current Logs History:")
+                                    for n_idx, n_row in proj_notes.iterrows():
+                                        cn_col1, cn_col2 = st.columns([5, 1])
+                                        with cn_col1:
+                                            # Differentiate regular admin entries from Supervisor Directives
+                                            note_style = f"ℹ️ **Supervisor Directive:** {n_row['case_note']}" if n_row.get('author_role') == "Supervisor" else f"{n_row['case_note']}"
+                                            st.caption(f"**{n_row['date']}** by *{n_row['author']}*: {note_style}")
+                                        with cn_col2:
+                                            # Option A: Quick delete option
+                                            if st.button("🗑️ Delete", key=f"del_note_{n_row['note_id']}_{idx}"):
+                                                df_notes_updated = df_notes[df_notes["note_id"] != n_row["note_id"]]
+                                                if save_notes_to_gsheet(df_notes_updated, sheet_notes_client):
+                                                    st.cache_data.clear()
+                                                    st.success("Note row dropped!")
+                                                    st.rerun()
                             
+                            # B. Add a New Case Note Record form
+                            with st.form(key=f"add_note_form_{idx}", clear_on_submit=True):
+                                new_case_txt = st.text_area("Write progress or case timeline commentary note:")
+                                as_role = st.selectbox("Log Note Identity Role As:", ["Admin", "Supervisor"], key=f"role_choice_{idx}")
+                                submit_note = st.form_submit_button("Append Note to History")
+                                
+                                if submit_note and new_case_txt:
+                                    next_note_id = int(df_notes['note_id'].max() + 1) if not df_notes.empty else 1
+                                    new_note_row = {
+                                        "note_id": next_note_id,
+                                        "project_id": row['id'],
+                                        "project_name": row['title'], # Keeps title mirror backup clean
+                                        "date": datetime.date.today().strftime('%Y-%m-%d'),
+                                        "author": "Supervisor Name" if as_role == "Supervisor" else "Admin Dashboard",
+                                        "author_role": as_role,
+                                        "case_note": "Change the format: " + new_case_txt if as_role == "Supervisor" else new_case_txt
+                                    }
+                                    
+                                    if df_notes.empty:
+                                        updated_notes_df = pd.DataFrame([new_note_row])
+                                    else:
+                                        updated_notes_df = pd.concat([df_notes, pd.DataFrame([new_note_row])], ignore_index=True)
+                                        
+                                    if save_notes_to_gsheet(updated_notes_df, sheet_notes_client):
+                                        st.cache_data.clear()
+                                        st.success("History tracking note captured successfully!")
+                                        st.rerun()
+                            
+                            # Option B: Advanced Mass spreadsheet row cell modification option
+                            with st.expander("🛠️ Advanced Spreadsheet Grid Note Editor", expanded=False):
+                                if not df_notes.empty and 'id' in row:
+                                    editable_project_notes = df_notes[df_notes["project_id"] == row["id"]]
+                                    if not editable_project_notes.empty:
+                                        edited_notes_df = st.data_editor(editable_project_notes, key=f"grid_edit_{idx}", hide_index=True)
+                                        if st.button("Commit Grid Cell Changes", key=f"save_grid_{idx}"):
+                                            df_notes.update(edited_notes_df)
+                                            if save_notes_to_gsheet(df_notes, sheet_notes_client):
+                                                st.cache_data.clear()
+                                                st.success("Grid overrides processed updates down onto base sheet successfully!")
+                                                st.rerun()
+                            
+                                                        
                             if st.button("Save Changes", key=f"btn_{idx}"):
                                 if new_status == "🟢 Completed":
                                     df_projects.at[idx, 'progress'] = 100
@@ -425,7 +535,15 @@ with tab3:
                             st.caption("📷 No preview image attached for this project.")
                         
                         st.markdown(f"*{row['description']}*")
-                        
+
+                        if not df_notes.empty and 'id' in row:
+                            archived_history_notes = df_notes[df_notes["project_id"] == row["id"]].sort_values(by="note_id", ascending=False)
+                            if not archived_history_notes.empty:
+                                with st.expander("👁️ View Complete Historical Audit Case Notes Trailing Log", expanded=False):
+                                    for _, an_row in archived_history_notes.iterrows():
+                                        role_tag = f" [{an_row['author_role']}]" if 'author_role' in an_row and an_row['author_role'] else ""
+                                        st.markdown(f"• **{an_row['date']}** ({an_row['author']}{role_tag}): {an_row['case_note']}")        
+                                                
                     with col_arch2:
                         if pd.notna(row['link']) and str(row['link']).strip() != "":
                             st.link_button("📂 Access Project", row['link'], use_container_width=True)
