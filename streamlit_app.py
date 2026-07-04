@@ -11,11 +11,17 @@ st.set_page_config(page_title="Work & Project Dashboard", page_icon="📊", layo
 @st.cache_data(ttl=0)  # Setting to 0 for instant testing updates!
 def load_data():
     try:
+        # 1. Pull the raw private key string directly from Streamlit Secrets
         raw_key = st.secrets["connections"]["gsheets"]["private_key"]
+        
+        # 2. Automatically repair any double-escaped literal "\n" text into actual line breaks
         private_key = raw_key.replace("\\n", "\n")
+        
+        # 3. Ensure the key block has perfectly clean single newlines
         while "\n\n" in private_key:
             private_key = private_key.replace("\n\n", "\n")
 
+        # 4. Reconstruct the full Google Account JSON structure using your exact secrets
         info = {
             "type": "service_account",
             "project_id": st.secrets["connections"]["gsheets"]["project_id"],
@@ -30,78 +36,50 @@ def load_data():
             "universe_domain": "googleapis.com"
         }
 
+        # 5. Authenticate via Google OAuth
         scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(info, scopes=scopes)
         client = gspread.authorize(creds)
 
+        # 6. Access the Google Sheet document via its URL
         spreadsheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-        spreadsheet = client.open_by_url(spreadsheet_url)
+        sheet = client.open_by_url(spreadsheet_url).sheet1
         
-        # Open or dynamically verify sheet structures
-        sheet_projects = spreadsheet.sheet1
-        data_p = sheet_projects.get_all_records()
-        df_p = pd.DataFrame(data_p)
-        
-        # Load or catch secondary Relational Notes page
-        try:
-            sheet_notes = spreadsheet.worksheet("Notes")
-            data_n = sheet_notes.get_all_records()
-            df_n = pd.DataFrame(data_n)
-        except gspread.exceptions.WorksheetNotFound:
-            # Creation safety valve if tab missing
-            sheet_notes = spreadsheet.add_worksheet(title="Notes", rows="100", cols="20")
-            headers = ["note_id", "project_id", "project_name", "date", "author_role", "case_note"]
-            sheet_notes.append_row(headers)
-            df_n = pd.DataFrame(columns=headers)
-
-        return df_p, sheet_projects, df_n, sheet_notes
+        data = sheet.get_all_records()
+        return pd.DataFrame(data), sheet
 
     except Exception as e:
-        st.error(f"Failed to connect to Google Sheets Cloud: {e}")
-        return pd.DataFrame(), None, pd.DataFrame(), None
+        st.error(f"Failed to connect to Google Sheets: {e}")
+        return pd.DataFrame(), None
 
 # --- FETCH & PREPARE DATA ---
-df_projects, sheet_api_client, df_notes, sheet_notes_client = load_data()
+df_projects, sheet_api_client = load_data()
 
-# Clean and normalize datasets
+# Clean and normalize columns
 if not df_projects.empty:
     if 'deadline' in df_projects.columns:
         df_projects['deadline'] = pd.to_datetime(df_projects['deadline'], errors='coerce')
+    
     if 'weekly_focus' in df_projects.columns:
         df_projects['weekly_focus'] = df_projects['weekly_focus'].astype(str).str.strip().str.upper()
 
-if not df_notes.empty:
-    if 'date' in df_notes.columns:
-        df_notes['date'] = pd.to_datetime(df_notes['date'], errors='coerce')
-
-# --- WRITE BACK UTILITIES ---
+# --- HELPER FUNCTION: NATIVE WRITE BACK VIA GSPREAD ---
 def save_dataframe_to_gsheet(df_to_save):
     if sheet_api_client is not None:
         try:
             df_copy = df_to_save.copy()
             if 'deadline' in df_copy.columns:
                 df_copy['deadline'] = df_copy['deadline'].dt.strftime('%Y-%m-%d')
+            
             sheet_api_client.clear()
             sheet_api_client.update([df_copy.columns.values.tolist()] + df_copy.values.tolist())
             return True
         except Exception as e:
-            st.error(f"Error saving projects layer: {e}")
+            st.error(f"Error saving down data rows: {e}")
+            return False
     return False
 
-def save_notes_to_gsheet(df_to_save):
-    if sheet_notes_client is not None:
-        try:
-            df_copy = df_to_save.copy()
-            if 'date' in df_copy.columns:
-                df_copy['date'] = df_copy['date'].dt.strftime('%Y-%m-%d')
-            sheet_notes_client.clear()
-            sheet_notes_client.update([df_copy.columns.values.tolist()] + df_copy.values.tolist())
-            return True
-        except Exception as e:
-            st.error(f"Error synchronizing case notes table: {e}")
-    return False
-
-# --- SECURITY & AUTHENTICATION ---
+# --- SECURITY & ADMIN LOGIN ---
 st.sidebar.title("🔐 Admin Panel")
 admin_password = st.sidebar.text_input("Enter Admin Password to Edit", type="password")
 
@@ -121,52 +99,56 @@ if admin_password:
 # --- OPTIONS LISTS ---
 DEPT_OPTIONS = ["At-Promise", "ECM", "Admin", "Other"]
 TYPE_OPTIONS = ["Tool", "Operations", "Forms", "Marketing", "Education", "Research", "Idea"]
-STATUS_OPTIONS = ["🔵 In-Progress", "🟡 In-Progress (Delayed)", "🟠 In-Development (Idea Board)", "🔴 Pending Further Instructions", "🟢 Completed"]
+
+STATUS_OPTIONS = [
+    "🔵 In-Progress", 
+    "🟡 In-Progress (Delayed)", 
+    "🟠 In-Development (Idea Board)", 
+    "🔴 Pending Further Instructions", 
+    "🟢 Completed"
+]
 ACTIVE_STATUS_OPTIONS = [s for s in STATUS_OPTIONS if s != "🟢 Completed"]
 
-# --- HELPER: COLOR PILLS ---
+# --- HELPER FUNCTION: COLOR-CODED PILLS ---
 def get_pill_html(text, segment_type="dept"):
     colors = {
-        "At-Promise": {"bg": "#dcfce7", "text": "#15803d"},
-        "ECM": {"bg": "#fef9c3", "text": "#854d0e"},
-        "Admin": {"bg": "#fee2e2", "text": "#991b1b"},
-        "Other": {"bg": "#e0f2fe", "text": "#0369a1"},
+        "At-Promise": {"bg": "#dcfce7", "text": "#15803d"},    # Pastel Green
+        "ECM": {"bg": "#fef9c3", "text": "#854d0e"},           # Pastel Yellow
+        "Admin": {"bg": "#fee2e2", "text": "#991b1b"},         # Light Red
+        "Other": {"bg": "#e0f2fe", "text": "#0369a1"},         # Pastel Blue
+        
         "🔵 In-Progress": {"bg": "#dbeafe", "text": "#1e40af"},
+        "🟡 Delayed": {"bg": "#fee2e2", "text": "#991b1b"},
         "🟡 In-Progress (Delayed)": {"bg": "#fee2e2", "text": "#991b1b"},
         "🟠 In-Development (Idea Board)": {"bg": "#ffedd5", "text": "#9a3412"},
         "🔴 Pending Further Instructions": {"bg": "#fef2f2", "text": "#b91c1c"},
         "🟢 Completed": {"bg": "#dcfce7", "text": "#166534"},
-        "Tool": {"bg": "#e0f2fe", "text": "#0369a1"},
-        "Operations": {"bg": "#f3f4f6", "text": "#374151"}
+
+        # Product / Project Types
+        "Tool": {"bg": "#e0f2fe", "text": "#0369a1"},          # Light Blue
+        "Operations": {"bg": "#f3f4f6", "text": "#374151"},    # Light Grey
+        "Forms": {"bg": "#ffedd5", "text": "#c2410c"},         # Pastel Orange
+        "Marketing": {"bg": "#fee2e2", "text": "#991b1b"},     # Red
+        "Education": {"bg": "#dcfce7", "text": "#15803d"},     # Light Green
+        "Idea": {"bg": "#f3e8ff", "text": "#6b21a8"},          # Light Purple
+        "Research": {"bg": "#ecfeff", "text": "#0e7490"}       # Cyan
     }
-    cfg = colors.get(text, {"bg": "#f3e8ff", "text": "#6b21a8"} if segment_type == "type" else {"bg": "#e2e8f0", "text": "#1e293b"})
+    
+    cfg = colors.get(text, {"bg": "#f0fdf4", "text": "#15803d"} if segment_type == "type" else {"bg": "#e2e8f0", "text": "#1e293b"})
     return f'<span style="background-color: {cfg["bg"]}; color: {cfg["text"]}; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 4px; display: inline-block;">{text}</span>'
 
-# --- SMART TIME badge CALCULATOR ---
-def get_time_badge(target_datetime):
-    if pd.isna(target_datetime):
-        return "N/A"
-    today = datetime.date.today()
-    target_date = target_datetime.date()
-    delta = today - target_date
-    if delta.days == 0:
-        return "⏱️ [TODAY]"
-    elif delta.days == 1:
-        return "⏳ [YESTERDAY]"
-    else:
-        return f"📅 [{target_date.strftime('%b %d')}]"
-
-# --- DATA SEGREGATION ---
+# --- DATA SEPARATION ---
 active_df = df_projects[df_projects["progress"] < 100] if not df_projects.empty else pd.DataFrame()
 completed_df = df_projects[df_projects["progress"] == 100] if not df_projects.empty else pd.DataFrame()
 
-# --- MAIN DASHBOARD INTERFACE ---
+# --- MAIN INTERFACE ---
 st.title("My Task Dashboard")
-st.write("Tracks active projects, collaborations, updates, and chronological case log streams.")
+st.write("Hello! This is my dashboard that tracks my active projects, collaborations, ideas, and general tasks given to me.")
 
-# --- METRICS LAYER ---
+# --- METRICS SECTION ---
 st.markdown("### Quick Summary")
 col1, col2, col3 = st.columns(3)
+
 if not df_projects.empty:
     total_active = len(active_df)
     total_blocked = len(df_projects[df_projects["status"] == "🔴 Pending Further Instructions"])
@@ -174,85 +156,97 @@ if not df_projects.empty:
 else:
     total_active, total_blocked, total_completed = 0, 0, 0
 
-col1.metric(label="Active Pipelines", value=total_active)
-col2.metric(label="Current Blockers", value=total_blocked, delta="- Clear" if total_blocked == 0 else f"{total_blocked} Urgent", delta_color="inverse" if total_blocked > 0 else "normal")
-col3.metric(label="Shipped Tasks", value=total_completed)
+col1.metric(label="Active Projects", value=total_active)
+col2.metric(
+    label="Current Blockers", 
+    value=total_blocked, 
+    delta="- Clear" if total_blocked == 0 else f"{total_blocked} Attention Needed",
+    delta_color="inverse" if total_blocked > 0 else "normal"
+)
+col3.metric(label="Shipped Portfolios", value=total_completed)
+
 st.markdown("---")
 
-# --- TABS LAYOUT ---
+# --- TAB DEFINITIONS ---
 tabs_list = ["🎯 At a Glance", "📋 Kanban Board", "🚀 Active Projects", "✅ Completed Archive"]
 if IS_ADMIN:
     tabs_list.append("➕ Add New Project")
-    tabs_list.append("⚙️ Notes Management")
 
 tabs = st.tabs(tabs_list)
 tab1, tab_kanban = tabs[0], tabs[1]
 tab2, tab3 = tabs[2], tabs[3]
 tab4 = tabs[4] if IS_ADMIN else None
-tab_manage = tabs[5] if IS_ADMIN else None
 
-# --- TAB 1: AT A GLANCE (WITH CHRONOLOGICAL FEEDS) ---
+# --- TAB 1: AT A GLANCE ---
 with tab1:
-    st.header("🎯 At a Glance Context Grid")
-    
-    # --- OPTION A: GLOBAL ACTIVITY FEED ---
-    st.subheader("⏱️ Recent Activity Feed (Last 5 Updates Across All Projects)")
-    if not df_notes.empty:
-        sorted_notes = df_notes.sort_values(by="date", ascending=False).head(5)
-        if sorted_notes.empty:
-            st.caption("_No notes logged in history workbook sheets._")
-        else:
-            for _, n_row in sorted_notes.iterrows():
-                time_badge = get_time_badge(n_row['date'])
-                author_lbl = f"({n_row['author_role']})" if 'author_role' in n_row else ""
-                
-                with st.container(border=True):
-                    st.markdown(f"**{n_row['project_name']}** — {time_badge} {author_lbl}")
-                    st.markdown(f"_{n_row['case_note']}_")
-    else:
-        st.info("No case records table active.")
-        
-    st.markdown("---")
-    
-    # --- OPTION B: PROJECT FOCUS CONTAINERS ---
+    st.header("🎯 Current Priorities & Needs")
+
     st.subheader("⭐ This Week's Focus")
     if not active_df.empty:
         focus_df = active_df[active_df["weekly_focus"] == "TRUE"]
         if not focus_df.empty:
             for _, row in focus_df.iterrows():
                 with st.container(border=True):
-                    st.markdown(f"**{row['title']}** ({row['department']})")
-                    p_val = int(row['progress']) if pd.notna(row['progress']) else 0
-                    st.caption(f"Progress Level: {p_val}% | Target: {row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else 'N/A'}")
-                    
-                    # Nested Option B Micro-Ledger
-                    if not df_notes.empty:
-                        p_notes = df_notes[df_notes["project_id"] == row["id"]].sort_values(by="date", ascending=False)
-                        with st.expander("📄 Click to expand local log micro-history", expanded=False):
-                            if p_notes.empty:
-                                st.caption("No entry milestones yet.")
-                            else:
-                                for _, pn in p_notes.iterrows():
-                                    st.markdown(f"• **{pn['date'].strftime('%Y-%m-%d') if pd.notna(pn['date']) else 'N/A'}** ({pn['author_role']}): {pn['case_note']}")
+                    proj_type_tag = f" | {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
+                    st.markdown(f"**{row['title']}** ({row['department']}{proj_type_tag})")
+                    target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
+                    progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
+                    progress_val = max(0, min(100, progress_val)) 
+
+                    filled_blocks = progress_val // 10
+                    empty_blocks = 10 - filled_blocks
+                    text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
+
+                    st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
         else:
-            st.info("Routine structural operations ongoing.")
+            st.info("Routine maintenance and backlog tasks.")
     else:
-        st.info("No active configurations found.")
+        st.info("No active projects set.")
+
+    st.markdown(" ")
+    st.markdown("---")
+    st.markdown(" ")
+
+    st.subheader("⚠️ Pending Instructions & Decisions")
+    if not active_df.empty:
+        blocked_df = active_df[active_df["status"] == "🔴 Pending Further Instructions"]
+        if not blocked_df.empty:
+            for _, row in blocked_df.iterrows():
+                with st.container(border=True):
+                    st.markdown(f"🔴 **{row['title']}**")
+                    st.markdown(f"**Current Impediment:** {row['notes']}")
+                    progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
+                    progress_val = max(0, min(100, progress_val))
+                    filled_blocks = progress_val // 10
+                    empty_blocks = 10 - filled_blocks
+                    text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
+
+                    st.caption(f"Stuck at: {progress_val}% {text_bar}")
+        else:
+            st.success("No items requiring instructions at this time.")
+    else:
+        st.success("Clear queue.")
+
 
 # --- TAB: KANBAN BOARD ---
 with tab_kanban:
     st.header("📋 Visual Workflow Kanban Board")
+    st.write("Dynamic columns grouped automatically by task status definitions.")
+    
     kanban_cols = st.columns(4)
+    
     kanban_statuses = [
         ("🔵 In-Progress", kanban_cols[0]),
         ("🟡 In-Progress (Delayed)", kanban_cols[1]),
         ("🟠 In-Development (Idea Board)", kanban_cols[2]),
         ("🔴 Pending Further Instructions", kanban_cols[3])
     ]
+    
     for status_name, col_obj in kanban_statuses:
         with col_obj:
             st.markdown(f"### {status_name.split(' ')[0]} {status_name.split(' ')[1]}")
             st.markdown("---")
+            
             if not df_projects.empty:
                 filtered_kb = df_projects[df_projects["status"] == status_name]
                 if filtered_kb.empty:
@@ -261,192 +255,222 @@ with tab_kanban:
                     for _, row in filtered_kb.iterrows():
                         with st.container(border=True):
                             st.markdown(f"**{row['title']}**")
-                            st.markdown(get_pill_html(row['department'], "dept"), unsafe_allow_html=True)
-                            st.caption(f"Progress: {int(row['progress'])}%")
+                            dept_pill = get_pill_html(row['department'], "dept")
+                            st.markdown(dept_pill, unsafe_allow_html=True)
+                            
+                            p_val = int(row['progress']) if pd.notna(row['progress']) else 0
+                            st.caption(f"Progress: {p_val}%")
+            else:
+                st.caption("_Empty Dataset_")
 
-# --- TAB 2: ACTIVE PROJECTS (WITH ENGINE LOGGER) ---
+
+# --- TAB 2: ACTIVE PROJECTS (WITH FILTER ENGINE) ---
 with tab2:
     st.header("🚀 Ongoing Project Pipelines")
+    
     if active_df.empty:
-        st.info("Clear workflow scope pipeline.")
+        st.info("No active projects found.")
     else:
+        # Subtle inline filter toolbar
         f_col1, f_col2, f_col3, f_col4 = st.columns(4)
-        with f_col1: sel_dept = st.selectbox("Department", ["All"] + DEPT_OPTIONS, key="a_dept")
-        with f_col2: sel_type = st.selectbox("Project Type", ["All"] + TYPE_OPTIONS, key="a_type")
-        with f_col3: sel_status = st.selectbox("Status Option", ["All"] + ACTIVE_STATUS_OPTIONS, key="a_stat")
-        with f_col4: sort_by = st.selectbox("Sort Order", ["Deadline (Earliest)", "Deadline (Latest)", "Progress (Highest)"], key="a_sort")
-
-        filtered_active = active_df.copy()
-        if sel_dept != "All": filtered_active = filtered_active[filtered_active["department"] == sel_dept]
-        if sel_type != "All": filtered_active = filtered_active[filtered_active["project_type"] == sel_type]
-        if sel_status != "All": filtered_active = filtered_active[filtered_active["status"] == sel_status]
+        with f_col1:
+            sel_dept = st.selectbox("Dept Filter", ["All"] + DEPT_OPTIONS, key="act_f_dept")
+        with f_col2:
+            sel_type = st.selectbox("Type Filter", ["All"] + TYPE_OPTIONS, key="act_f_type")
+        with f_col3:
+            sel_status = st.selectbox("Status Filter", ["All"] + ACTIVE_STATUS_OPTIONS, key="act_f_stat")
+        with f_col4:
+            sort_by = st.selectbox("Sort By", ["Deadline (Earliest)", "Deadline (Latest)", "Progress (Lowest)", "Progress (Highest)"], key="act_sort")
         
-        if "Highest" in sort_by: filtered_active = filtered_active.sort_values(by="progress", ascending=False)
-        elif "Latest" in sort_by: filtered_active = filtered_active.sort_values(by="deadline", ascending=False, na_position="last")
-        else: filtered_active = filtered_active.sort_values(by="deadline", ascending=True, na_position="last")
+        # Apply logic filtering
+        filtered_active = active_df.copy()
+        if sel_dept != "All":
+            filtered_active = filtered_active[filtered_active["department"] == sel_dept]
+        if sel_type != "All":
+            filtered_active = filtered_active[filtered_active["project_type"] == sel_type]
+        if sel_status != "All":
+            filtered_active = filtered_active[filtered_active["status"] == sel_status]
+            
+        # Apply sorting logic
+        if sort_by == "Deadline (Earliest)":
+            filtered_active = filtered_active.sort_values(by="deadline", ascending=True, na_position="last")
+        elif sort_by == "Deadline (Latest)":
+            filtered_active = filtered_active.sort_values(by="deadline", ascending=False, na_position="last")
+        elif sort_by == "Progress (Lowest)":
+            filtered_active = filtered_active.sort_values(by="progress", ascending=True)
+        elif sort_by == "Progress (Highest)":
+            filtered_active = filtered_active.sort_values(by="progress", ascending=False)
 
         st.markdown("---")
-        for idx, row in filtered_active.iterrows():
-            type_label = f" — {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
-            with st.expander(f"{row['status']} - {row['title']} — [{row['department']}{type_label}]", expanded=False):
-                c1, c2 = st.columns([2, 1])
-                with c1:
-                    st.markdown(f"**Description:** {row['description']}")
-                    st.markdown(f"**Partners / Collaboration:** {row['partner'] if row['partner'] else 'Solo Item'}")
-                    if row['notes']: st.markdown(f"**Latest Updates:** {row['notes']}")
+
+        if filtered_active.empty:
+            st.caption("No active items matching your selection filters.")
+        else:
+            for idx, row in filtered_active.iterrows():
+                type_label = f" — {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
+                with st.expander(f"{row['status']} - {row['title']} — [{row['department']}{type_label}]", expanded=True):
+                    c1, c2 = st.columns([2, 1])
                     
-                    # --- COMPREHENSIVE CASE NOTES SUB-SECTION ---
-                    st.markdown("#### 📝 Historical Case Logs")
-                    if not df_notes.empty:
-                        p_notes = df_notes[df_notes["project_id"] == row["id"]].sort_values(by="date", ascending=False)
-                        if p_notes.empty:
-                            st.caption("No registered history logs for this assignment.")
-                        else:
-                            for n_idx, n_row in p_notes.iterrows():
-                                if n_row['author_role'] == "Supervisor Directives":
-                                    st.markdown(f"⚠️ **[SUPERVISOR DIRECTIVE]** ({n_row['date'].strftime('%Y-%m-%d') if pd.notna(n_row['date']) else 'N/A'}): `{n_row['case_note']}`")
-                                else:
-                                    # Inline Trash Removal Mechanic for Admin Management
-                                    if IS_ADMIN:
-                                        t_c1, t_c2 = st.columns([6, 1])
-                                        t_c1.write(f"• **{n_row['date'].strftime('%Y-%m-%d') if pd.notna(n_row['date']) else 'N/A'}** [{n_row['author_role']}]: {n_row['case_note']}")
-                                        if t_c2.button("🗑️ Delete", key=f"del_inline_{n_row['note_id']}"):
-                                            df_notes = df_notes[df_notes["note_id"] != n_row["note_id"]]
-                                            if save_notes_to_gsheet(df_notes):
-                                                st.cache_data.clear()
-                                                st.success("Log item expunged!")
-                                                st.rerun()
-                                    else:
-                                        st.write(f"• **{n_row['date'].strftime('%Y-%m-%d') if pd.notna(n_row['date']) else 'N/A'}** [{n_row['author_role']}]: {n_row['case_note']}")
-
-                    # --- ADD NEW LOG FORM INTERFACE (ADMIN LOG INTERFACE) ---
-                    if IS_ADMIN:
-                        st.markdown("##### ➕ Record New Case Entry")
-                        with st.form(key=f"case_form_{row['id']}", clear_on_submit=True):
-                            note_txt = st.text_area("Progress Ledger Notes Context")
-                            role_choice = st.selectbox("Log Context Type", ["Admin", "Supervisor Directives"], key=f"role_{row['id']}")
-                            sub_note = st.form_submit_button("Append Case Note")
-                            
-                            if sub_note and note_txt.strip():
-                                next_n_id = int(df_notes['note_id'].max() + 1) if not df_notes.empty else 1
-                                new_n_row = {
-                                    "note_id": next_n_id,
-                                    "project_id": row['id'],
-                                    "project_name": row['title'],
-                                    "date": pd.to_datetime(datetime.date.today()),
-                                    "author_role": role_choice,
-                                    "case_note": note_txt.strip()
-                                }
-                                df_notes = pd.concat([df_notes, pd.DataFrame([new_n_row])], ignore_index=True)
-                                if save_notes_to_gsheet(df_notes):
-                                    st.cache_data.clear()
-                                    st.success("Case history line successfully broadcast to storage layers!")
-                                    st.rerun()
-
-                with c2:
-                    st.markdown(f"📆 **Deadline Target:** {row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else 'N/A'}")
-                    if IS_ADMIN:
-                        new_progress = st.slider("Progress %", 0, 100, int(row['progress']), key=f"p_{idx}")
-                        new_status = st.selectbox("Status", STATUS_OPTIONS, index=STATUS_OPTIONS.index(row['status'] if row['status'] in STATUS_OPTIONS else STATUS_OPTIONS[0]), key=f"s_{idx}")
-                        new_type = st.selectbox("Type", TYPE_OPTIONS, index=TYPE_OPTIONS.index(row['project_type'] if ('project_type' in row and row['project_type'] in TYPE_OPTIONS) else TYPE_OPTIONS[0]), key=f"t_{idx}")
-                        new_focus = st.selectbox("Weekly Focus", ["FALSE", "TRUE"], index=["FALSE", "TRUE"].index(row['weekly_focus'] if row['weekly_focus'] in ["FALSE", "TRUE"] else "FALSE"), key=f"f_{idx}")
-                        new_notes = st.text_area("Notes", value=row['notes'], key=f"n_{idx}")
-                        new_link = st.text_input("Deliverable URL", value=row['link'], key=f"l_{idx}")
+                    with c1:
+                        st.markdown(f"**Description:** {row['description']}")
+                        st.markdown(f"**Partners / Collaboration:** {row['partner'] if row['partner'] else 'Solo Item'}")
+                        if row['notes']:
+                            st.markdown(f"**Latest Updates / Notes:** {row['notes']}")
+                    
+                    with c2:
+                        target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
+                        st.markdown(f"📆 **Deadline:** {target_date}")
                         
-                        if st.button("Save Row State Changes", key=f"btn_{idx}"):
-                            df_projects.at[idx, 'progress'] = 100 if new_status == "🟢 Completed" else new_progress
-                            df_projects.at[idx, 'status'] = "🟢 Completed" if new_progress == 100 else new_status
-                            df_projects.at[idx, 'project_type'] = new_type
-                            df_projects.at[idx, 'weekly_focus'] = new_focus
-                            df_projects.at[idx, 'notes'] = new_notes
-                            df_projects.at[idx, 'link'] = new_link
+                        if IS_ADMIN:
+                            new_progress = st.slider("Update Progress", 0, 100, int(row['progress']), key=f"p_{idx}")
+                            curr_status = row['status'] if row['status'] in ACTIVE_STATUS_OPTIONS else ACTIVE_STATUS_OPTIONS[0]
+                            new_status = st.selectbox("Update Status", STATUS_OPTIONS, index=STATUS_OPTIONS.index(curr_status), key=f"s_{idx}")
                             
-                            if save_dataframe_to_gsheet(df_projects):
-                                st.cache_data.clear()
-                                st.success("Cloud Synchronized!")
-                                st.rerun()
-                    else:
-                        st.progress(int(row['progress']) / 100)
-                        st.write(f"Current Status: **{row['status']}**")
+                            curr_type = row['project_type'] if ('project_type' in row and row['project_type'] in TYPE_OPTIONS) else TYPE_OPTIONS[0]
+                            new_type = st.selectbox("Update Project Type", TYPE_OPTIONS, index=TYPE_OPTIONS.index(curr_type), key=f"t_{idx}")
 
-# --- TAB 3: COMPLETED ARCHIVE (SUPERVISOR COLLAPSIBLE LEDGER COMPATIBLE) ---
+                            is_focused_now = "TRUE" if row['weekly_focus'] == "TRUE" else "FALSE"
+                            new_focus_selection = st.selectbox("Set Weekly Focus", options=["FALSE", "TRUE"], index=["FALSE", "TRUE"].index(is_focused_now), key=f"f_{idx}")
+                            
+                            new_notes = st.text_area("Edit Update Notes", value=row['notes'], key=f"n_{idx}")
+                            new_link = st.text_input("Attach Final Deliverable URL", value=row['link'], key=f"l_{idx}")
+                            
+                            if st.button("Save Changes", key=f"btn_{idx}"):
+                                if new_status == "🟢 Completed":
+                                    df_projects.at[idx, 'progress'] = 100
+                                else:
+                                    df_projects.at[idx, 'progress'] = new_progress
+                                    
+                                df_projects.at[idx, 'status'] = "🟢 Completed" if new_progress == 100 else new_status
+                                df_projects.at[idx, 'project_type'] = new_type
+                                df_projects.at[idx, 'weekly_focus'] = new_focus_selection
+                                df_projects.at[idx, 'notes'] = new_notes
+                                df_projects.at[idx, 'link'] = new_link
+                                
+                                if save_dataframe_to_gsheet(df_projects):
+                                    st.cache_data.clear()
+                                    st.success("Database rows synchronized successfully!")
+                                    st.rerun()
+                        else:
+                            st.write("Progress Meter:")
+                            st.progress(int(row['progress']) / 100)
+                            st.write(f"Current Status: **{row['status']}**")
+                            if row['weekly_focus'] == "TRUE":
+                                st.warning("🎯 Marked as a high priority for this week.")
+
+
+# --- TAB 3: COMPLETED ARCHIVE (WITH FILTER ENGINE) ---
 with tab3:
     st.header("Project Archive")
+    
     if completed_df.empty:
-        st.info("Archive database layers are unpopulated.")
+        st.info("Archive is empty. Completed projects will automatically shift here.")
     else:
-        for idx, row in completed_df.iterrows():
-            with st.container(border=True):
-                col_arch1, col_arch2 = st.columns([3, 1])
-                with col_arch1:
-                    st.markdown(f"### ✅ {row['title']}")
-                    st.markdown(get_pill_html(row['department'], "dept") + get_pill_html(row['project_type'], "type"), unsafe_allow_html=True)
-                    st.markdown(f"*{row['description']}*")
-                    
-                    # Collapsible Supervisor/Auditor Ledger Tracker
-                    st.markdown(" ")
-                    with st.expander("👁️ View Complete Historical Case Notes Records", expanded=False):
-                        if not df_notes.empty:
-                            archived_logs = df_notes[df_notes["project_id"] == row["id"]].sort_values(by="date", ascending=False)
-                            if archived_logs.empty:
-                                st.caption("No case log strings associated with this historic project id.")
-                            else:
-                                for _, an_row in archived_logs.iterrows():
-                                    st.write(f"• **{an_row['date'].strftime('%Y-%m-%d') if pd.notna(an_row['date']) else 'N/A'}** [{an_row['author_role']}]: {an_row['case_note']}")
-                        else:
-                            st.caption("No notes table connection array.")
-                with col_arch2:
-                    if pd.notna(row['link']) and str(row['link']).strip():
-                        st.link_button("📂 Access Deliverable", row['link'], use_container_width=True)
+        # Subtle inline filter toolbar
+        arch_col1, arch_col2, arch_col3 = st.columns([1, 1, 2])
+        with arch_col1:
+            arch_dept = st.selectbox("Dept Filter", ["All"] + DEPT_OPTIONS, key="arch_f_dept")
+        with arch_col2:
+            arch_type = st.selectbox("Type Filter", ["All"] + TYPE_OPTIONS, key="arch_f_type")
+        with arch_col3:
+            arch_sort = st.selectbox("Sort By", ["Deadline (Latest)", "Deadline (Earliest)"], key="arch_sort")
 
-# --- TAB 4: ADMIN STRUCTURAL CREATION ---
+        # Apply logic filtering
+        filtered_arch = completed_df.copy()
+        if arch_dept != "All":
+            filtered_arch = filtered_arch[filtered_arch["department"] == arch_dept]
+        if arch_type != "All":
+            filtered_arch = filtered_arch[filtered_arch["project_type"] == arch_type]
+
+        # Apply sorting logic
+        if arch_sort == "Deadline (Latest)":
+            filtered_arch = filtered_arch.sort_values(by="deadline", ascending=False, na_position="last")
+        elif arch_sort == "Deadline (Earliest)":
+            filtered_arch = filtered_arch.sort_values(by="deadline", ascending=True, na_position="last")
+
+        st.markdown("---")
+
+        if filtered_arch.empty:
+            st.caption("No archived items matching your selection filters.")
+        else:
+            for idx, row in filtered_arch.iterrows():
+                with st.container(border=True):
+                    col_arch1, col_arch2 = st.columns([3, 1])
+                    with col_arch1:
+                        st.markdown(f"### ✅ {row['title']}")
+                        
+                        tags_html = get_pill_html(row['department'], "dept")
+                        if 'project_type' in row and row['project_type']:
+                            tags_html += get_pill_html(row['project_type'], "type")
+                        st.markdown(tags_html, unsafe_allow_html=True)
+                        
+                        target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
+                        st.markdown(f"**Completed Date:** {target_date}")
+                        
+                        if 'image_url' in row and pd.notna(row['image_url']) and str(row['image_url']).strip() != "":
+                            raw_url = str(row['image_url']).strip()
+                            if "drive.google.com/file/d/" in raw_url:
+                                try:
+                                    file_id = raw_url.split("/file/d/")[1].split("/")[0]
+                                    display_url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
+                                except Exception:
+                                    display_url = raw_url
+                            else:
+                                display_url = raw_url
+
+                            img_col, spacer_col = st.columns([2, 3])
+                            with img_col:
+                                st.image(display_url, caption=f"Preview: {row['title']}", use_container_width=True)
+                        else:
+                            st.caption("📷 No preview image attached for this project.")
+                        
+                        st.markdown(f"*{row['description']}*")
+                        
+                    with col_arch2:
+                        if pd.notna(row['link']) and str(row['link']).strip() != "":
+                            st.link_button("📂 Access Project", row['link'], use_container_width=True)
+                        else:
+                            st.caption("No link attached.")
+
+
+# --- TAB 4: ADMIN CREATION TAB ---
 if IS_ADMIN and tab4 is not None:
     with tab4:
         st.header("➕ Add New Project Entry")
         with st.form("creation_form_unique", clear_on_submit=True):
-            new_title = st.text_input("Project Title")
-            new_dept = st.selectbox("Department Tag", options=DEPT_OPTIONS)
+            new_title = st.text_input("Project / Assignment Title")
+            new_dept = st.selectbox("Department / Segment Tag", options=DEPT_OPTIONS)
             new_type = st.selectbox("Project Type", options=TYPE_OPTIONS)
-            new_partner = st.text_input("Partners")
+            new_partner = st.text_input("Partners (Separated by commas)")
             new_desc = st.text_area("Detailed Project Description")
             new_deadline = st.date_input("Target Completion Deadline", datetime.date.today())
             new_status = st.selectbox("Initial Status", options=STATUS_OPTIONS)
             new_focus_choice = st.selectbox("Set as Weekly Focus?", options=["FALSE", "TRUE"])
             
-            if st.form_submit_button("Append to Google Sheet Database") and new_title:
+            submit_new = st.form_submit_button("Append to Google Sheet Database")
+            
+            if submit_new and new_title:
                 next_id = int(df_projects['id'].max() + 1) if not df_projects.empty else 1
+                init_progress = 100 if new_status == "🟢 Completed" else 0
+                
                 new_row = {
-                    "id": next_id, "title": new_title, "department": new_dept, "project_type": new_type,
-                    "partner": new_partner, "progress": 100 if new_status == "🟢 Completed" else 0,
-                    "status": new_status, "description": new_desc, "notes": "",
-                    "deadline": pd.to_datetime(new_deadline), "weekly_focus": new_focus_choice, "link": ""
+                    "id": next_id,
+                    "title": new_title,
+                    "department": new_dept,
+                    "project_type": new_type,
+                    "partner": new_partner,
+                    "progress": init_progress,
+                    "status": new_status,
+                    "description": new_desc,
+                    "notes": "",
+                    "deadline": pd.to_datetime(new_deadline),
+                    "weekly_focus": new_focus_choice,
+                    "link": ""
                 }
+                
                 updated_df = pd.concat([df_projects, pd.DataFrame([new_row])], ignore_index=True)
+                
                 if save_dataframe_to_gsheet(updated_df):
                     st.cache_data.clear()
-                    st.success("Appended Successfully!")
+                    st.success(f"Successfully appended '{new_title}' to the cloud database!")
                     st.rerun()
-
-# --- TAB 5: ADMIN CASE NOTES DATA EDITOR TOOL ---
-if IS_ADMIN and tab_manage is not None:
-    with tab_manage:
-        st.header("⚙️ Centralized Case Logs Advanced Management Panel")
-        st.write("Clean text formatting or structural adjustments directly across the `Notes` document layout spreadsheet rows:")
-        
-        if not df_notes.empty:
-            df_editable_notes = df_notes.copy()
-            # Convert timestamp data blocks safely to clean strings for user UI edits
-            if 'date' in df_editable_notes.columns:
-                df_editable_notes['date'] = df_editable_notes['date'].dt.strftime('%Y-%m-%d')
-                
-            edited_notes_df = st.data_editor(df_editable_notes, num_rows="dynamic", use_container_width=True, key="bulk_notes_editor")
-            
-            if st.button("Save Bulk Grid Modifications"):
-                if 'date' in edited_notes_df.columns:
-                    edited_notes_df['date'] = pd.to_datetime(edited_notes_df['date'], errors='coerce')
-                if save_notes_to_gsheet(edited_notes_df):
-                    st.cache_data.clear()
-                    st.success("Notes worksheet successfully written back to Google Sheet structure maps!")
-                    st.rerun()
-        else:
-            st.info("Notes ledger dataset holds no structural lines to edit.")
