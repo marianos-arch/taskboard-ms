@@ -433,7 +433,7 @@ with tab2:
                                             st.caption(f"**{n_row['date']}** by *{n_row['author']}*: {note_style}")
                                         with cn_col2:
                                             # Option A: Quick delete option
-                                            if st.button("🗑️ Delete", key=f"del_note_{n_row['note_id']}_{idx}"):
+                                            if st.button("Delete", key=f"del_note_{n_row['note_id']}_{idx}"):
                                                 df_notes_updated = df_notes[df_notes["note_id"] != n_row["note_id"]]
                                                 if save_notes_to_gsheet(df_notes_updated, sheet_notes_client):
                                                     st.cache_data.clear()
