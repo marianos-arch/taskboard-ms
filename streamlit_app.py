@@ -611,7 +611,7 @@ with tab3:
                                     for _, an_row in archived_history_notes.iterrows():
                                         role_tag = f" [{an_row['author_role']}]" if 'author_role' in an_row and an_row['author_role'] else ""
                                         st.markdown(f"• **{an_row['date']}** ({an_row['author']}{role_tag}): {an_row['case_note']}")        
-with col_arch2:
+                    with col_arch2:
                         raw_link = str(row['link']).strip() if pd.notna(row['link']) else ""
                         
                         if raw_link != "":
