@@ -266,14 +266,22 @@ tab4 = tabs[4] if IS_ADMIN else None
 with tab1:
     st.header("Current Priorities & Changes")
 
+
     st.subheader("This Week's Focus")
     if not active_df.empty:
         focus_df = active_df[active_df["weekly_focus"] == "TRUE"]
         if not focus_df.empty:
             for _, row in focus_df.iterrows():
                 with st.container(border=True):
-                    proj_type_tag = f" | {row['project_type']}" if 'project_type' in row and row['project_type'] else ""
-                    st.markdown(f"**{row['title']}** ({row['department']}{proj_type_tag})")
+                    # 1. Title and HTML Colored Pills
+                    dept_pill = get_pill_html(row['department'], "dept")
+                    type_pill = get_pill_html(row['project_type'], "type") if 'project_type' in row and row['project_type'] else ""
+                    
+                    st.markdown(f"### {row['title']}")
+                    st.markdown(f"{dept_pill}{type_pill}", unsafe_allow_html=True)
+                    st.markdown(" ") # Spacer
+                    
+                    # 2. Progress Metric and Target Deadlines
                     target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
                     progress_val = int(row['progress']) if pd.notna(row['progress']) else 0
                     progress_val = max(0, min(100, progress_val)) 
@@ -282,7 +290,23 @@ with tab1:
                     empty_blocks = 10 - filled_blocks
                     text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
 
-                    st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
+                    st.markdown(f"**Progress:** {progress_val}% &nbsp;&nbsp; ` {text_bar} ` &nbsp;&nbsp; | &nbsp;&nbsp; 📆 **Target:** {target_date}")
+                    
+                    # 3. Dynamic Injection of the Latest Note for this Project
+                    if not df_notes.empty and 'id' in row:
+                        specific_notes = df_notes[df_notes["project_id"] == row["id"]]
+                        if not specific_notes.empty:
+                            # Pull the absolute most recent entry
+                            latest_project_note = specific_notes.sort_values(by="note_id", ascending=False).iloc[0]
+                            time_badge = parse_relative_date(latest_project_note['date'])
+                            role_label = f" ({latest_project_note['author_role']})" if 'author_role' in latest_project_note and latest_project_note['author_role'] else ""
+                            
+                            st.markdown("""<div style='margin-top: 10px; margin-bottom: 2px; font-size: 13px; font-weight: 600; color: #555;'>📌 Latest Progress Note:</div>""", unsafe_allow_html=True)
+                            st.info(f"*{time_badge}* — **{latest_project_note['author']}{role_label}:** {latest_project_note['case_note']}")
+                        else:
+                            st.caption("_No explicit case timeline updates logged for this asset yet._")
+                    else:
+                        st.caption("_No explicit case timeline updates logged for this asset yet._")
         else:
             st.info("Routine maintenance and backlog tasks.")
     else:
