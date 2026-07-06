@@ -260,7 +260,7 @@ with tab1:
 
                     filled_blocks = progress_val // 10
                     empty_blocks = 10 - filled_blocks
-                    text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
+                    text_bar = f"[\033[1m{'■ ' * filled_blocks}{'□ ' * empty_blocks}\033[0m]"
 
                     st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
         else:
