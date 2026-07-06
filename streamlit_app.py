@@ -611,29 +611,50 @@ with tab3:
                                     for _, an_row in archived_history_notes.iterrows():
                                         role_tag = f" [{an_row['author_role']}]" if 'author_role' in an_row and an_row['author_role'] else ""
                                         st.markdown(f"• **{an_row['date']}** ({an_row['author']}{role_tag}): {an_row['case_note']}")        
-                                                
                     with col_arch2:
                         raw_link = str(row['link']).strip() if pd.notna(row['link']) else ""
                         
                         if raw_link != "":
-                            # Check if the link is a Windows local network share file path
-                            if raw_link.startswith(r"\\") or raw_link.startswith("//") or raw_link.endswith(".html"):
-                                # Use an expander container to cleanly show the embedded file right in the UI
-                                with st.expander("🖥️ Open Local Dashboard", expanded=False):
-                                    try:
-                                        # Python safely opens and reads the file from the network path
-                                        with open(raw_link, "r", encoding="utf-8", errors="ignore") as f:
-                                            html_content = f.read()
+                            # Check if it's a local Windows file path (starts with a drive letter like Z:\ or network \\)
+                            if ":" in raw_link or raw_link.startswith(r"\\"):
+                                
+                                # Clean up the path for display (replace forward slashes if any)
+                                clean_path = raw_link.replace("/", "\\")
+                                
+                                # Extract the file name (e.g., GP_ECM_FILE_PROCESSOR_v.12.html)
+                                file_name = clean_path.split("\\")[-1]
+                                
+                                # Extract the folders in between the drive and the file
+                                path_parts = clean_path.split("\\")
+                                folders = path_parts[1:-1] if len(path_parts) > 2 else []
+                                folder_steps = " ➡️ ".join(folders) if folders else "Root Folder"
+
+                                # Create a clickable button that triggers a pop-up modal
+                                if st.button("📂 Locate File", key=f"loc_{idx}", use_container_width=True):
+                                    @st.dialog("Network File Location")
+                                    def show_file_instructions():
+                                        st.markdown("### 🖥️ Shared Drive Directions")
+                                        st.info(f"This application lives on your company's shared network drive.")
                                         
-                                        # Render it to the user via the browser
-                                        import streamlit.components.v1 as components
-                                        components.html(html_content, height=500, scrolling=True)
-                                    except Exception as e:
-                                        st.error("⚠️ Connection Error: Unable to fetch file from shared network. Verify your VPN or network connection.")
-                                        st.caption(f"Error details: {e}")
+                                        # Display the exact instructions you requested
+                                        st.markdown(f"""
+                                        **Step 1:** Open your Windows File Explorer.
+                                        
+                                        **Step 2:** Navigate through these folders:
+                                        📂 **{folder_steps}**
+                                        
+                                        **Step 3:** Look for the file named:
+                                        📄 `{file_name}`
+                                        """)
+                                        
+                                        # Give them a quick copy-paste box just in case they want to paste it into File Explorer
+                                        st.text_input("Copy full path:", value=clean_path, read_only=True)
+                                    
+                                    show_file_instructions()
+                                    
                             else:
-                                # Default back to standard button behavior for Google Docs, Web links, etc.
-                                st.link_button("📂 Access Project Docs", raw_link, use_container_width=True)
+                                # Standard web links (Google Docs, etc.) still open normally
+                                st.link_button("🔗 Open Link", raw_link, use_container_width=True)
                         else:
                             st.caption("No link attached.")
 
