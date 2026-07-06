@@ -276,7 +276,7 @@ with tab1:
                     dept_pill = get_pill_html(row['department'], "dept")
                     type_pill = get_pill_html(row['project_type'], "type") if 'project_type' in row and row['project_type'] else ""
                     
-                    st.markdown(f"### {row['title']}")
+                    st.markdown(f"**{row['title']}**", unsafe_allow_html=True)
                     st.markdown(f"{dept_pill}{type_pill}", unsafe_allow_html=True)
                     
                     # 2. Progress Metric and Target Deadlines
@@ -288,19 +288,16 @@ with tab1:
                     empty_blocks = 10 - filled_blocks
                     text_bar = f"[{'■ ' * filled_blocks}{'□ ' * empty_blocks}]"
 
-                    st.markdown(f"**Progress:** {progress_val}% &nbsp;&nbsp; ` {text_bar} ` &nbsp;&nbsp; | &nbsp;&nbsp; **Target Date:** {target_date}")
+                    st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
                     
-                   # 3. Pulling Latest Notes straight from Sheet 1 'notes' column
-                    # st.markdown("""<div style='margin-top: 10px; margin-bottom: 2px; font-size: 13px; font-weight: 600; color: #555;'> Latest Status Note:</div>""", unsafe_allow_html=True)
-                    
+                    # 3. Simple Status Note
                     if 'notes' in row and str(row['notes']).strip() != "" and pd.notna(row['notes']):
                         st.info(row['notes'])
-                    else:
-                        st.caption("_No explicit status updates written in main project row yet._")
         else:
             st.info("Routine maintenance and backlog tasks.")
     else:
         st.info("No active projects set.")
+        
 
     st.markdown(" ")
     st.markdown("---")
@@ -355,8 +352,8 @@ with tab_kanban:
     
     kanban_statuses = [
         ("🔵 In-Progress", kanban_cols[0]),
-        ("🟡 In-Progress: Delayed", kanban_cols[1]),
-        ("🟠 In-Development: Idea Board", kanban_cols[2]),
+        ("🟡 In-Progress (Delayed)", kanban_cols[1]),
+        ("🟠 In-Development (Idea Board)", kanban_cols[2]),
         ("🔴 Pending Further Instructions", kanban_cols[3])
     ]
     
