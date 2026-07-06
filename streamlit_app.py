@@ -294,7 +294,7 @@ with tab1:
                     #st.markdown("""<div style='margin-top: 10px; margin-bottom: 2px; font-size: 13px; font-weight: 600; color: #555;'>Latest Status Note:</div>""", unsafe_allow_html=True)
                     
                     if 'notes' in row and str(row['notes']).strip() != "" and pd.notna(row['notes']):
-                        st.info(row['notes'])
+                        st.caption(row['notes'])
                     else:
                         st.caption("_No explicit status updates written in main project row yet._")
         else:
