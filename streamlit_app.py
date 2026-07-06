@@ -137,10 +137,7 @@ def save_dataframe_to_gsheet(df_to_save):
                 df_copy['deadline'] = df_copy['deadline'].dt.strftime('%Y-%m-%d')
             
             sheet_api_client.clear()
-            sheet_api_client.update(
-                range_name="A1", 
-                values=[df_copy.columns.values.tolist()] + df_copy.values.tolist()
-            )
+            sheet_api_client.update(values=[df_copy.columns.values.tolist()] + df_copy.values.tolist())
             return True
         except Exception as e:
             st.error(f"Error saving down data rows: {e}")
