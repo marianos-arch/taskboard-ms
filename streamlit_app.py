@@ -137,7 +137,7 @@ def save_dataframe_to_gsheet(df_to_save):
                 df_copy['deadline'] = df_copy['deadline'].dt.strftime('%Y-%m-%d')
             
             sheet_api_client.clear()
-            sheet_api_client.update([df_copy.columns.values.tolist()] + df_copy.values.tolist())
+            sheet_api_client.update(values=[df_copy.columns.values.tolist()] + df_copy.values.tolist())
             return True
         except Exception as e:
             st.error(f"Error saving down data rows: {e}")
@@ -631,6 +631,8 @@ if IS_ADMIN and tab4 is not None:
             new_focus_choice = st.selectbox("Set as Weekly Focus?", options=["FALSE", "TRUE"])
             
             st.form_submit_button("Append to Google Sheet Database")
+
+            submit_new = st.form_submit_button("Append to Google Sheet Database")    
             
             if submit_new and new_title:
                 next_id = int(df_projects['id'].max() + 1) if not df_projects.empty else 1
