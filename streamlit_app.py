@@ -483,7 +483,7 @@ with tab2:
                                         "date": datetime.date.today().strftime('%Y-%m-%d'),
                                         "author": "Supervisor Name" if as_role == "Supervisor" else "Admin Dashboard",
                                         "author_role": as_role,
-                                        "case_note": "Change the format: " + new_case_txt if as_role == "Supervisor" else new_case_txt
+                                        "case_note": new_case_txt if as_role == "Supervisor" else new_case_txt
                                     }
                                     
                                     if df_notes.empty:
