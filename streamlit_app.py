@@ -434,6 +434,9 @@ with tab2:
                         st.markdown(f"**Partners / Collaboration:** {row['partner'] if row['partner'] else 'Solo Item'}")
                         if row['notes']:
                             st.markdown(f"**Latest Updates / Notes:** {row['notes']}")
+                        # NEW REQUIREMENT: Inline visual check inside the description workspace
+                        if pd.notna(row['link']) and str(row['link']).strip() != "":
+                            st.markdown(f"🔗 **Active Link:** [{row['link']}]({row['link']})")
                     
                     with c2:
                         target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
