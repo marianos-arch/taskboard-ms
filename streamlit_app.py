@@ -611,13 +611,16 @@ with tab3:
                                     for _, an_row in archived_history_notes.iterrows():
                                         role_tag = f" [{an_row['author_role']}]" if 'author_role' in an_row and an_row['author_role'] else ""
                                         st.markdown(f"• **{an_row['date']}** ({an_row['author']}{role_tag}): {an_row['case_note']}")        
-                    with col_arch2:
+with col_arch2:
                         raw_link = str(row['link']).strip() if pd.notna(row['link']) else ""
                         
                         if raw_link != "":
-                            # Check if it's a local Windows file path (starts with a drive letter like Z:\ or network \\)
-                            if ":" in raw_link or raw_link.startswith(r"\\"):
+                            # 1. Standard web links (Google Docs, websites, etc.) - Leave as is
+                            if raw_link.lower().startswith("http://") or raw_link.lower().startswith("https://"):
+                                st.link_button("🔗 Open Link", raw_link, use_container_width=True)
                                 
+                            # 2. Local network or shared drive paths (e.g., Z:\... or \\...)
+                            elif ":" in raw_link or raw_link.startswith(r"\\"):
                                 # Clean up the path for display (replace forward slashes if any)
                                 clean_path = raw_link.replace("/", "\\")
                                 
@@ -647,14 +650,14 @@ with tab3:
                                         📄 `{file_name}`
                                         """)
                                         
-                                        # Fixed parameter: replaced read_only=True with disabled=True
+                                        # Box to easily highlight and copy the full path
                                         st.text_input("Copy full path:", value=clean_path, disabled=True)
                                     
                                     show_file_instructions()
                                     
                             else:
-                                # Standard web links (Google Docs, etc.) still open normally
-                                st.link_button("🔗 Open Link", raw_link, use_container_width=True)
+                                # Fallback if it's some other format of plain text description
+                                st.caption(f"Location: {raw_link}")
                         else:
                             st.caption("No link attached.")
 
