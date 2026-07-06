@@ -260,7 +260,11 @@ with tab1:
 
                     filled_blocks = progress_val // 10
                     empty_blocks = 10 - filled_blocks
-                    text_bar = f"[\033[1m{'■ ' * filled_blocks}{'□ ' * empty_blocks}\033[0m]"
+                    # Color Codes: 
+                    # \033[97m = Bright White  |  \033[92m = Light Green  |  \033[96m = Light Cyan
+                    # \033[0m  = Reset back to default color
+
+                    text_bar = f"[\033[92m{'■ ' * filled_blocks}\033[0m{'□ ' * empty_blocks}]"
 
                     st.caption(f"Progress: {progress_val}% {text_bar} | Target: {target_date}")
         else:
