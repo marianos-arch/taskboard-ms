@@ -636,7 +636,7 @@ with tab3:
                                         st.markdown("### 🖥️ Shared Drive Directions")
                                         st.info(f"This application lives on your company's shared network drive.")
                                         
-                                        # Display the exact instructions you requested
+                                        # Display the parsed instructions
                                         st.markdown(f"""
                                         **Step 1:** Open your Windows File Explorer.
                                         
@@ -647,8 +647,8 @@ with tab3:
                                         📄 `{file_name}`
                                         """)
                                         
-                                        # Give them a quick copy-paste box just in case they want to paste it into File Explorer
-                                        st.text_input("Copy full path:", value=clean_path, read_only=True)
+                                        # Fixed parameter: replaced read_only=True with disabled=True
+                                        st.text_input("Copy full path:", value=clean_path, disabled=True)
                                     
                                     show_file_instructions()
                                     
@@ -657,7 +657,6 @@ with tab3:
                                 st.link_button("🔗 Open Link", raw_link, use_container_width=True)
                         else:
                             st.caption("No link attached.")
-
 
 # --- TAB 4: ADMIN CREATION TAB ---
 if IS_ADMIN and tab4 is not None:
