@@ -111,7 +111,7 @@ def parse_relative_date(date_val):
         elif target_dt == today_dt - datetime.timedelta(days=1):
             return "[YESTERDAY]"
         else:
-            return f" [{target_dt.strftime('%b %d')}]"
+            return f"[{target_dt.strftime('%b %d')}]"
     except Exception:
         return "📝 [LOG]"
 
