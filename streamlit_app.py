@@ -144,44 +144,42 @@ def save_dataframe_to_gsheet(df_to_save):
             return False
     return False
 
-
-# --- SECURITY & REGISTRATION CODES ---
+# --- SECURITY & AUTHENTICATION PORTAL ---
 st.sidebar.title("🔐 Authentication Portal")
-
-# Separate password fields for clear entry points
-admin_password = st.sidebar.text_input("Admin Access Key", type="password")
-supervisor_password = st.sidebar.text_input("Supervisor Access Key", type="password")
+admin_password = st.sidebar.text_input("Enter Admin Password", type="password")
+supervisor_password = st.sidebar.text_input("Enter Supervisor Password", type="password")
 
 IS_ADMIN = False
 IS_SUPERVISOR = False
 
-# 1. Evaluate Admin Passwords
+# Evaluate Admin Credentials
 if admin_password:
     try:
         if admin_password == st.secrets["ADMIN_PASSWORD"]:
             IS_ADMIN = True
             st.sidebar.success("👑 Admin Mode Active")
         else:
-            st.sidebar.error("Incorrect Admin Key.")
+            st.sidebar.error("Incorrect Admin password.")
     except KeyError:
         if admin_password == "testpass":
             IS_ADMIN = True
-            st.sidebar.success("Local Test Admin Active")
+            st.sidebar.success("Local Test Auth Successful!")
 
-# 2. Evaluate Supervisor Passwords
+# Evaluate Supervisor Credentials
 if supervisor_password:
     try:
         if supervisor_password == st.secrets["SUPERVISOR_PASSWORD"]:
             IS_SUPERVISOR = True
             st.sidebar.success("📋 Supervisor Mode Active")
         else:
-            st.sidebar.error("Incorrect Supervisor Key.")
+            st.sidebar.error("Incorrect Supervisor password.")
     except KeyError:
         if supervisor_password == "superpass":
             IS_SUPERVISOR = True
-            st.sidebar.success("Local Test Supervisor Active")
+            st.sidebar.success("Local Test Supervisor Active!")
 
-
+# Determine if user has any form editing permissions
+HAS_EDIT_ACCESS = IS_ADMIN or IS_SUPERVISOR
 
 # --- OPTIONS LISTS ---
 DEPT_OPTIONS = ["At-Promise", "ECM", "Admin", "Other"]
@@ -427,7 +425,7 @@ with tab2:
                         target_date = row['deadline'].strftime('%b %d, %Y') if pd.notna(row['deadline']) else "N/A"
                         st.markdown(f"📆 **Deadline:** {target_date}")
                         
-                        if IS_ADMIN:
+                        if HAS_EDIT_ACCESS:
                             new_progress = st.slider("Update Progress", 0, 100, int(row['progress']), key=f"p_{idx}")
                             curr_status = row['status'] if row['status'] in ACTIVE_STATUS_OPTIONS else ACTIVE_STATUS_OPTIONS[0]
                             new_status = st.selectbox("Update Status", STATUS_OPTIONS, index=STATUS_OPTIONS.index(curr_status), key=f"s_{idx}")
@@ -461,11 +459,19 @@ with tab2:
                                                     st.cache_data.clear()
                                                     st.success("Note row dropped!")
                                                     st.rerun()
-                            
+                                            
                             # B. Add a New Case Note Record form
                             with st.form(key=f"add_note_form_{idx}", clear_on_submit=True):
                                 new_case_txt = st.text_area("Write progress or case timeline commentary note:")
-                                as_role = st.selectbox("Log Note Identity Role As:", ["Admin", "Supervisor"], key=f"role_choice_{idx}")
+                                
+                                # Dynamic drop-down construction depending on who authenticated
+                                available_roles = []
+                                if IS_ADMIN:
+                                    available_roles.append("Admin")
+                                if IS_SUPERVISOR:
+                                    available_roles.append("Supervisor")
+                                    
+                                as_role = st.selectbox("Log Note Identity Role As:", available_roles, key=f"role_choice_{idx}")
                                 submit_note = st.form_submit_button("Append Note to History")
                                 
                                 if submit_note and new_case_txt:
@@ -610,7 +616,7 @@ if IS_ADMIN and tab4 is not None:
             new_status = st.selectbox("Initial Status", options=STATUS_OPTIONS)
             new_focus_choice = st.selectbox("Set as Weekly Focus?", options=["FALSE", "TRUE"])
             
-            submit_new = st.form_submit_button("Append to Google Sheet Database")
+            st.form_submit_button("Append to Google Sheet Database")
             
             if submit_new and new_title:
                 next_id = int(df_projects['id'].max() + 1) if not df_projects.empty else 1
