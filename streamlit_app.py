@@ -629,7 +629,7 @@ if IS_ADMIN and tab4 is not None:
             new_deadline = st.date_input("Target Completion Deadline", datetime.date.today())
             new_status = st.selectbox("Initial Status", options=STATUS_OPTIONS)
             new_focus_choice = st.selectbox("Set as Weekly Focus?", options=["FALSE", "TRUE"])
-            
+
             submit_new = st.form_submit_button("Append to Google Sheet Database")    
             
             if submit_new and new_title:
