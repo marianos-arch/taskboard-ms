@@ -613,8 +613,27 @@ with tab3:
                                         st.markdown(f"• **{an_row['date']}** ({an_row['author']}{role_tag}): {an_row['case_note']}")        
                                                 
                     with col_arch2:
-                        if pd.notna(row['link']) and str(row['link']).strip() != "":
-                            st.link_button("📂 Access Project", row['link'], use_container_width=True)
+                        raw_link = str(row['link']).strip() if pd.notna(row['link']) else ""
+                        
+                        if raw_link != "":
+                            # Check if the link is a Windows local network share file path
+                            if raw_link.startswith(r"\\") or raw_link.startswith("//") or raw_link.endswith(".html"):
+                                # Use an expander container to cleanly show the embedded file right in the UI
+                                with st.expander("🖥️ Open Local Dashboard", expanded=False):
+                                    try:
+                                        # Python safely opens and reads the file from the network path
+                                        with open(raw_link, "r", encoding="utf-8", errors="ignore") as f:
+                                            html_content = f.read()
+                                        
+                                        # Render it to the user via the browser
+                                        import streamlit.components.v1 as components
+                                        components.html(html_content, height=500, scrolling=True)
+                                    except Exception as e:
+                                        st.error("⚠️ Connection Error: Unable to fetch file from shared network. Verify your VPN or network connection.")
+                                        st.caption(f"Error details: {e}")
+                            else:
+                                # Default back to standard button behavior for Google Docs, Web links, etc.
+                                st.link_button("📂 Access Project Docs", raw_link, use_container_width=True)
                         else:
                             st.caption("No link attached.")
 
