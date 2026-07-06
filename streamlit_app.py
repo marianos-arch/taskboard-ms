@@ -290,21 +290,13 @@ with tab1:
 
                     st.markdown(f"**Progress:** {progress_val}% &nbsp;&nbsp; ` {text_bar} ` &nbsp;&nbsp; | &nbsp;&nbsp; **Target Date:** {target_date}")
                     
-                    # 3. Dynamic Injection of the Latest Note for this Project
-                    if not df_notes.empty and 'id' in row:
-                        specific_notes = df_notes[df_notes["project_id"] == row["id"]]
-                        if not specific_notes.empty:
-                            # Pull the absolute most recent entry
-                            latest_project_note = specific_notes.sort_values(by="note_id", ascending=False).iloc[0]
-                            time_badge = parse_relative_date(latest_project_note['date'])
-                            role_label = f" ({latest_project_note['author_role']})" if 'author_role' in latest_project_note and latest_project_note['author_role'] else ""
-                            
-                            st.markdown("""<div style='margin-top: 10px; margin-bottom: 2px; font-size: 13px; font-weight: 600; color: #555;'>📌 Latest Progress Note:</div>""", unsafe_allow_html=True)
-                            st.info(f"*{time_badge}* — **{latest_project_note['author']}{role_label}:** {latest_project_note['case_note']}")
-                        else:
-                            st.caption("_No explicit case timeline updates logged for this asset yet._")
+                   # 3. Pulling Latest Notes straight from Sheet 1 'notes' column
+                    st.markdown("""<div style='margin-top: 10px; margin-bottom: 2px; font-size: 13px; font-weight: 600; color: #555;'>📌 Latest Status Note:</div>""", unsafe_allow_html=True)
+                    
+                    if 'notes' in row and str(row['notes']).strip() != "" and pd.notna(row['notes']):
+                        st.info(row['notes'])
                     else:
-                        st.caption("_No explicit case timeline updates logged for this asset yet._")
+                        st.caption("_No explicit status updates written in main project row yet._")
         else:
             st.info("Routine maintenance and backlog tasks.")
     else:
