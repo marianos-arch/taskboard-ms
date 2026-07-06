@@ -144,22 +144,44 @@ def save_dataframe_to_gsheet(df_to_save):
             return False
     return False
 
-# --- SECURITY & ADMIN LOGIN ---
-st.sidebar.title("🔐 Admin Panel")
-admin_password = st.sidebar.text_input("Enter Admin Password to Edit", type="password")
+
+# --- SECURITY & REGISTRATION CODES ---
+st.sidebar.title("🔐 Authentication Portal")
+
+# Separate password fields for clear entry points
+admin_password = st.sidebar.text_input("Admin Access Key", type="password")
+supervisor_password = st.sidebar.text_input("Supervisor Access Key", type="password")
 
 IS_ADMIN = False
+IS_SUPERVISOR = False
+
+# 1. Evaluate Admin Passwords
 if admin_password:
     try:
         if admin_password == st.secrets["ADMIN_PASSWORD"]:
             IS_ADMIN = True
-            st.sidebar.success("Authenticated!")
+            st.sidebar.success("👑 Admin Mode Active")
         else:
-            st.sidebar.error("Incorrect password.")
+            st.sidebar.error("Incorrect Admin Key.")
     except KeyError:
         if admin_password == "testpass":
             IS_ADMIN = True
-            st.sidebar.success("Local Test Auth Successful!")
+            st.sidebar.success("Local Test Admin Active")
+
+# 2. Evaluate Supervisor Passwords
+if supervisor_password:
+    try:
+        if supervisor_password == st.secrets["SUPERVISOR_PASSWORD"]:
+            IS_SUPERVISOR = True
+            st.sidebar.success("📋 Supervisor Mode Active")
+        else:
+            st.sidebar.error("Incorrect Supervisor Key.")
+    except KeyError:
+        if supervisor_password == "superpass":
+            IS_SUPERVISOR = True
+            st.sidebar.success("Local Test Supervisor Active")
+
+
 
 # --- OPTIONS LISTS ---
 DEPT_OPTIONS = ["At-Promise", "ECM", "Admin", "Other"]
