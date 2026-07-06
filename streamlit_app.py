@@ -107,11 +107,11 @@ def parse_relative_date(date_val):
         target_dt = pd.to_datetime(date_val).date()
         today_dt = datetime.date.today()
         if target_dt == today_dt:
-            return "❤️ [TODAY]"
+            return "[TODAY]"
         elif target_dt == today_dt - datetime.timedelta(days=1):
-            return "⏳ [YESTERDAY]"
+            return "[YESTERDAY]"
         else:
-            return f"📅 [{target_dt.strftime('%b %d')}]"
+            return f" [{target_dt.strftime('%b %d')}]"
     except Exception:
         return "📝 [LOG]"
 
@@ -233,7 +233,7 @@ col3.metric(label="Shipped Portfolios", value=total_completed)
 st.markdown("---")
 
 # --- TAB DEFINITIONS ---
-tabs_list = ["🎯 At a Glance", "📋 Kanban Board", "🚀 Active Projects", "✅ Completed Archive"]
+tabs_list = ["🎯 At a Glance", "📋 Kanban Board", "🚀 Active Projects", "✅ Completed"]
 if IS_ADMIN:
     tabs_list.append("➕ Add New Project")
 
@@ -244,9 +244,9 @@ tab4 = tabs[4] if IS_ADMIN else None
 
 # --- TAB 1: AT A GLANCE ---
 with tab1:
-    st.header("🎯 Current Priorities & Needs")
+    st.header("Current Priorities & Changes")
 
-    st.subheader("⭐ This Week's Focus")
+    st.subheader("This Week's Focus")
     if not active_df.empty:
         focus_df = active_df[active_df["weekly_focus"] == "TRUE"]
         if not focus_df.empty:
@@ -273,7 +273,7 @@ with tab1:
     st.markdown(" ")
 
     # --- NEW: OPTION A (GLOBAL TIMELINE FEED) ---
-    st.subheader("⏱️ Recent Activity Feed")
+    st.subheader("Recent Activity Feed")
     if not df_notes.empty:
         # Sort values with newest notes at the very top, grab top 5 entries
         latest_notes = df_notes.sort_values(by="note_id", ascending=False).head(5)
@@ -314,7 +314,7 @@ with tab1:
 
 # --- TAB: KANBAN BOARD ---
 with tab_kanban:
-    st.header("📋 Visual Workflow Kanban Board")
+    st.header("Visual Workflow Kanban Board")
     st.write("Dynamic columns grouped automatically by task status definitions.")
     
     kanban_cols = st.columns(4)
@@ -350,7 +350,7 @@ with tab_kanban:
 
 # --- TAB 2: ACTIVE PROJECTS (WITH FILTER ENGINE) ---
 with tab2:
-    st.header("🚀 Ongoing Project Pipelines")
+    st.header(" Ongoing Project ")
     
     if active_df.empty:
         st.info("No active projects found.")
