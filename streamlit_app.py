@@ -266,7 +266,7 @@ tab4 = tabs[4] if IS_ADMIN else None
 with tab1:
     st.header("Current Priorities & Changes")
 
-st.subheader("This Week's Focus")
+    st.subheader("This Week's Focus")
     if not active_df.empty:
         focus_df = active_df[active_df["weekly_focus"] == "TRUE"]
         if not focus_df.empty:
