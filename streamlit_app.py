@@ -291,7 +291,7 @@ with tab1:
                     st.markdown(f"**Progress:** {progress_val}% &nbsp;&nbsp; ` {text_bar} ` &nbsp;&nbsp; | &nbsp;&nbsp; **Target Date:** {target_date}")
                     
                    # 3. Pulling Latest Notes straight from Sheet 1 'notes' column
-                    st.markdown("""<div style='margin-top: 10px; margin-bottom: 2px; font-size: 13px; font-weight: 600; color: #555;'>📌 Latest Status Note:</div>""", unsafe_allow_html=True)
+                    # st.markdown("""<div style='margin-top: 10px; margin-bottom: 2px; font-size: 13px; font-weight: 600; color: #555;'> Latest Status Note:</div>""", unsafe_allow_html=True)
                     
                     if 'notes' in row and str(row['notes']).strip() != "" and pd.notna(row['notes']):
                         st.info(row['notes'])
@@ -355,8 +355,8 @@ with tab_kanban:
     
     kanban_statuses = [
         ("🔵 In-Progress", kanban_cols[0]),
-        ("🟡 In-Progress (Delayed)", kanban_cols[1]),
-        ("🟠 In-Development (Idea Board)", kanban_cols[2]),
+        ("🟡 In-Progress: Delayed", kanban_cols[1]),
+        ("🟠 In-Development: Idea Board", kanban_cols[2]),
         ("🔴 Pending Further Instructions", kanban_cols[3])
     ]
     
